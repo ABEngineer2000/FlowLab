@@ -26,8 +26,8 @@ xr, yr = Xfoil.pane(npan = 100)
 
 
 #set range of angles of attack
-rangealpha = [0 14]
-deltaalpha = 1
+rangealpha = alpharange
+deltaalpha = dalpha
 n = (rangealpha[1,2] - rangealpha[1,1])/deltaalpha + 1
 n_int = Int(round(n))
 alpha = Array{Float16, 1}(undef, n_int)
@@ -35,8 +35,6 @@ alpha[1] = rangealpha[1,1]
 for i = 2:n_int
     alpha[i] = alpha[i - 1] + deltaalpha
 end
-
-re = 1e5 # Reynolds number
 
 # plot the refined airfoil geometry
 scatter(xr, yr, label="", framestyle=:none, aspect_ratio=1.0, show=true)
