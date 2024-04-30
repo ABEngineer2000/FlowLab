@@ -1,6 +1,6 @@
 using Xfoil, Plots, Printf, LinearAlgebra
 
-
+function Xfoil_function(alpharange, dalpha, re)
 # read airfoil coordinates from a file
 x, y = open("Airfoil1.txt", "r") do f
     x = Float64[]
@@ -53,14 +53,26 @@ for i = 1:n_a
     c_l[i], c_d[i], c_dp[i], c_m[i], converged[i] = Xfoil.solve_alpha(alpha[i], re; iter=100, reinit=true)
 end
 
-
-
 # print results
 println("Angle\t\tCl\t\tCd\t\tCm\t\tConverged")
 i = 1
-for i = 1:n_a
+for i = 1:length(alpha)
     @printf("%8f\t%8f\t%8f\t%8f\t%d\n",alpha[i],c_l[i],c_d[i],c_m[i],converged[i])
 end
 
-plot1 = plot(alpha, c_l, label = false, xlabel = "Alpha", ylabel = "Coefficient of Lift")
-savefig(plot1, "Coefficient of Lift Graph.png")
+    return  c_l, c_d, c_dp, c_m, converged, alpha
+end
+
+function plotter(alpha, c_l, c_d, c_m)
+plot1 = plot(alpha, c_l, label="", xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+plot2 = plot(alpha, c_d, label="", xlabel="Angle of Attack (degrees)", ylabel="Drag Coefficient")
+plot3 = plot(alpha, c_m, label="", xlabel="Angle of Attack (degrees)", ylabel="Moment Coefficient")
+    return plot1, plot2, plot3
+end
+
+alpharange = [-9 14]
+dalpha = 1
+re = 100000
+file = "C:\\Users\\josep\\OneDrive\\Desktop\\FlowLab\\Airfoils\\NACA 16-006.txt"
+c_l, c_d, c_dp, c_m, converged, alpha = Xfoil_function(alpharange, dalpha, re)
+println("")
