@@ -57,7 +57,20 @@ function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterat
         @printf("%8f\t%8f\t%8f\t%8f\t%d\n",alpha[i],c_l[i],c_d[i],c_m[i],converged[i])
     end
     =#
-    return alpha, c_l, c_d, c_m, converged
+
+    #All coefficients are put into an array for exporting
+    CSVArray = Array{Float16, 2}(undef, 4, length(alpha))
+    CSVArray[1, :] = c_l
+    CSVArray[2, :] = c_d
+    CSVArray[3, :] = c_m
+    CSVArray[4, :] = converged
+    #= troubleshooting
+    println(CSVArray[1,:])
+    println(CSVArray[2,:])
+    println(CSVArray[3,:])
+    println(CSVArray[4,:])
+    =#
+    return alpha, c_l, c_d, c_m, converged, CSVArray
 end
 
 #call function here
