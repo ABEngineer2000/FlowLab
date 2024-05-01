@@ -1,4 +1,4 @@
-using Xfoil, Plots, Printf, LinearAlgebra
+using Xfoil, Plots, Printf, LinearAlgebra, DelimitedFiles
 
 #set range of reynolds number and incremental number
 #set alpha range
@@ -44,7 +44,6 @@ function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterat
     converged = zeros(Bool, n_a)
 
     #Solve Numerically for Lift, Drag, and Moment
-    i = 1
     for i = 1:n_a
         c_l[i], c_d[i], c_dp[i], c_m[i], converged[i] = Xfoil.solve_alpha(alpha[i], re; iter= iterations, reinit=true)
     end
