@@ -8,7 +8,19 @@ end
 
 z, o = Practice(3,4)
 println(z)
+println(Char(' '))
+Array1 = readdlm("C:\\Users\\josep\\OneDrive\\Desktop\\FlowLab\\Airfoils\\NACA 16-006.txt", Float16)
+x = Array{Float16, 2}(undef, size(Array1, 1), 1)
+y = Array{Float16, 2}(undef, size(Array1, 1), 1)
+println(size(Array1, 1))
+println(length(x))
 
+for i = 1:size(Array1, 1)
+    x[i] = Array1[i, 1]
+    y[i] = Array1[i, 2]
+end
+println(x)
+println(y)
 
 function Camber(x,c,p)
     if x <= p

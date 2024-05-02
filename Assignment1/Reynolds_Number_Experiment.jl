@@ -7,9 +7,20 @@ using Xfoil, Plots, Printf, LinearAlgebra, DelimitedFiles
 #save the results to a txt file or csv file
 
 function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterations)
-    
-    #read in file
-    x, y = open("Airfoil1.txt", "r") do f
+    global re = 1e5
+    #read in file"
+    Array1 = readdlm("C:\\Users\\josep\\OneDrive\\Desktop\\FlowLab\\Airfoils\\NACA 16-006.txt", Float16)
+    x = Array{Float16, 2}(undef, size(Array1, 1), 1)
+    y = Array{Float16, 2}(undef, size(Array1, 1), 1)
+    println(size(Array1, 1))
+    println(length(x))
+
+    for i = 1:size(Array1, 1)
+        x[i] = Array1[i, 1]
+        y[i] = Array1[i, 2]
+    end
+    #=
+    x, y = open("C:\\Users\\josep\\OneDrive\\Desktop\\FlowLab\\Airfoils\\NACA 16-006.txt", "r") do f
         x = Float64[]
         y = Float64[]
         for line in eachline(f)
@@ -19,6 +30,7 @@ function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterat
         end
         x, y
     end
+    =#
 
     # load airfoil coordinates into XFOIL
     Xfoil.set_coordinates(x,y)
@@ -63,13 +75,19 @@ function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterat
     CSVArray[2, :] = c_d
     CSVArray[3, :] = c_m
     CSVArray[4, :] = converged
-    #= troubleshooting
+     # troubleshooting
+     #=
     println(CSVArray[1,:])
     println(CSVArray[2,:])
     println(CSVArray[3,:])
     println(CSVArray[4,:])
     =#
+
     return alpha, c_l, c_d, c_m, converged, CSVArray
+end
+
+function WriteFile(CSVArray)
+
 end
 
 #call function here
