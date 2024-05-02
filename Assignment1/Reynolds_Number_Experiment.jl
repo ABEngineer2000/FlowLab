@@ -102,7 +102,8 @@ function ReynoldsRepeater(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iteratio
     for i = 1:length(ReynoldsRange)
         alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(ReynoldsRange[i], AlphaRange, DeltaAlpha, n_pan, iterations)
         filename_i = "$(filename)Reynolds_Number$(ReynoldsRange[i]).csv"
-        WriteFile(CSVArray, filename_i, CSVHeader)   
+        WriteFile(CSVArray, filename_i, CSVHeader)
+        plotter("$(filename)Reynolds_Number$(ReynoldsRange[i]).csv", "$(filename)Reynolds_Number$(ReynoldsRange[i])_plot.png")   
     end
 end
 
@@ -122,16 +123,17 @@ function plotter(CSVFile, filename)
     savefig(c_mplot,"$(filename)_Moment_plot.png")
 end
 
-plotter("Assignment1\\NACA16-006Reynolds_Number10000.0.csv", "Assignment1\\NACA16-006Reynolds_Number10000.0")
-
+#=
+plotter("Assignment1\\NACA16-006\\NACA16-006Reynolds_Number10000.0.csv", "Assignment1\\NACA16-006\\NACA16-006Reynolds_Number10000.0")
+=#
 #= 
 A = [1 2 3 4; 5 6 7 8; 9 10 11 12]
 println(A[:, 2:4 ])
 =#
 
-#=
-ReynoldsRepeater([1000 10000 1e5 1e6 1e7], [0 3], 0.5, 100, 100, "Assignment1\\NACA16-006")
-=#
+
+ReynoldsRepeater([1000 10000 1e5 1e6 1e7], [-9 14], 0.5, 100, 200, "Assignment1\\NACA16-006\\NACA16-006")
+
 #call function here
 #=
 alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(1e5, [0 3], 0.5, 100, 100)
