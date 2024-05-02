@@ -7,9 +7,22 @@ using Xfoil, Plots, Printf, LinearAlgebra, DelimitedFiles
 #save the results to a txt file or csv file
 
 function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterations)
-    
-    #read in file
-    x, y = open("Airfoil1.txt", "r") do f
+    global re = 1e5
+    #read in file"
+    Array1 = readdlm("Airfoils\\NACA 16-006.txt", Float16)
+    x = Array{Float16, 2}(undef, size(Array1, 1), 1)
+    y = Array{Float16, 2}(undef, size(Array1, 1), 1)
+    #= #troubleshooting
+    println(size(Array1, 1))
+    println(length(x))
+    =#
+
+    for i = 1:size(Array1, 1)
+        x[i] = Array1[i, 1]
+        y[i] = Array1[i, 2]
+    end
+    #=
+    x, y = open("C:\\Users\\josep\\OneDrive\\Desktop\\FlowLab\\Airfoils\\NACA 16-006.txt", "r") do f
         x = Float64[]
         y = Float64[]
         for line in eachline(f)
@@ -19,6 +32,7 @@ function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterat
         end
         x, y
     end
+    =#
 
     # load airfoil coordinates into XFOIL
     Xfoil.set_coordinates(x,y)
@@ -58,20 +72,33 @@ function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterat
     =#
 
     #All coefficients are put into an array for exporting
-    CSVArray = Array{Float16, 2}(undef, 4, length(alpha))
-    CSVArray[1, :] = c_l
-    CSVArray[2, :] = c_d
-    CSVArray[3, :] = c_m
-    CSVArray[4, :] = converged
-    #= troubleshooting
+    CSVArray = Array{Float16, 2}(undef, length(alpha), 5)
+    CSVArray[:, 1] = alpha
+    CSVArray[:, 2] = c_l
+    CSVArray[:, 3] = c_d
+    CSVArray[:, 4] = c_m
+    CSVArray[:, 5] = converged
+    CSVHeader = Array{String, 2}(undef, 1, 5)
+    CSVHeader[1,:] = ["alpha";"c_l"; "c_d"; "c_m"; "converged"]
+     # troubleshooting
+     #=
     println(CSVArray[1,:])
     println(CSVArray[2,:])
     println(CSVArray[3,:])
     println(CSVArray[4,:])
     =#
-    return alpha, c_l, c_d, c_m, converged, CSVArray
+
+    return alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader
+end
+
+function WriteFile(CSVArray, filename, CSVHeader)
+    open(filename, "w") do io
+        writedlm(io, CSVHeader, ',')
+        writedlm(io, CSVArray, ',')
+    end
 end
 
 #call function here
-ReyonldsExperiment(1, [0 3], 0.5, 100, 100)
+alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(1, [0 3], 0.5, 100, 100)
+WriteFile(CSVArray, "Assignment1\\Test1.csv", CSVHeader)
 println("")
