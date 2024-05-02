@@ -106,7 +106,7 @@ function ReynoldsRepeater(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iteratio
     end
 end
 
-ReynoldsRepeater([1e5 2e5], [0 3], 0.5, 100, 100, "Assignment1\\MultipleTests")
+ReynoldsRepeater([1000 10000 1e5 1e6 1e7], [0 3], 0.5, 100, 100, "Assignment1\\NACA16-006")
 
 #call function here
 #=
