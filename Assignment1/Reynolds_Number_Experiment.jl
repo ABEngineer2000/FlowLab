@@ -6,8 +6,8 @@ using Xfoil, Plots, Printf, LinearAlgebra, DelimitedFiles
 #complete an xfoil analysis for each reynolds number
 #save the results to a txt file or csv file
 
-function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterations)
-    global re = 1e5
+function ReyonldsExperiment(ReynoldsNumber, AlphaRange, DeltaAlpha, n_pan, iterations)
+    global re = ReynoldsNumber
     #read in file"
     Array1 = readdlm("Airfoils\\NACA 16-006.txt", Float16)
     x = Array{Float16, 2}(undef, size(Array1, 1), 1)
@@ -98,7 +98,19 @@ function WriteFile(CSVArray, filename, CSVHeader)
     end
 end
 
+function ReynoldsRepeater(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterations, filename)
+    for i = 1:length(ReynoldsRange)
+        alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(ReynoldsRange[i], AlphaRange, DeltaAlpha, n_pan, iterations)
+        filename_i = "$(filename)Reynolds_Number$(ReynoldsRange[i]).csv"
+        WriteFile(CSVArray, filename_i, CSVHeader)   
+    end
+end
+
+ReynoldsRepeater([1e5 2e5], [0 3], 0.5, 100, 100, "Assignment1\\MultipleTests")
+
 #call function here
-alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(1, [0 3], 0.5, 100, 100)
+#=
+alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(1e5, [0 3], 0.5, 100, 100)
 WriteFile(CSVArray, "Assignment1\\Test1.csv", CSVHeader)
 println("")
+=#
