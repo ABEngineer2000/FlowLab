@@ -6,8 +6,8 @@ using Xfoil, Plots, Printf, LinearAlgebra, DelimitedFiles
 #complete an xfoil analysis for each reynolds number
 #save the results to a txt file or csv file
 
-function ReyonldsExperiment(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterations)
-    global re = 1e5
+function ReyonldsExperiment(ReynoldsNumber, AlphaRange, DeltaAlpha, n_pan, iterations)
+    global re = ReynoldsNumber
     #read in file"
     Array1 = readdlm("Airfoils\\NACA 16-006.txt", Float16)
     x = Array{Float16, 2}(undef, size(Array1, 1), 1)
@@ -98,7 +98,46 @@ function WriteFile(CSVArray, filename, CSVHeader)
     end
 end
 
+function ReynoldsRepeater(ReynoldsRange, AlphaRange, DeltaAlpha, n_pan, iterations, filename)
+    for i = 1:length(ReynoldsRange)
+        alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(ReynoldsRange[i], AlphaRange, DeltaAlpha, n_pan, iterations)
+        filename_i = "$(filename)Reynolds_Number$(ReynoldsRange[i]).csv"
+        WriteFile(CSVArray, filename_i, CSVHeader)
+        plotter("$(filename)Reynolds_Number$(ReynoldsRange[i]).csv", "$(filename)Reynolds_Number$(ReynoldsRange[i])_plot.png")   
+    end
+end
+
+function plotter(CSVFile, filename)
+    Array_plot = readdlm(CSVFile, ',')
+    n = size(Array_plot, 1) - 1
+    Header = Array_plot[1, :]
+    Alpha = Array_plot[2:n, 1]
+    c_l = Array_plot[2:n, 2]
+    c_d = Array_plot[2:n, 3]
+    c_m = Array_plot[2:n, 4]
+    c_lplot = plot(Alpha, c_l, label=false, xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+    c_dplot = plot(Alpha, c_d, label=false, xlabel="Angle of Attack (degrees)", ylabel="Drag Coefficient")
+    c_mplot = plot(Alpha, c_m, label=false, xlabel="Angle of Attack (degrees)", ylabel="Moment Coefficient")
+    savefig(c_lplot, "$(filename)_lift_plot.png")
+    savefig(c_dplot,"$(filename)_Drag_plot.png")
+    savefig(c_mplot,"$(filename)_Moment_plot.png")
+end
+
+#=
+plotter("Assignment1\\NACA16-006\\NACA16-006Reynolds_Number10000.0.csv", "Assignment1\\NACA16-006\\NACA16-006Reynolds_Number10000.0")
+=#
+#= 
+A = [1 2 3 4; 5 6 7 8; 9 10 11 12]
+println(A[:, 2:4 ])
+=#
+
+
+ReynoldsRepeater([1000 10000 1e5 1e6 1e7], [-9 14], 0.5, 100, 200, "Assignment1\\NACA16-006\\NACA16-006")
+
 #call function here
-alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(1, [0 3], 0.5, 100, 100)
+#=
+alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = ReyonldsExperiment(1e5, [0 3], 0.5, 100, 100)
 WriteFile(CSVArray, "Assignment1\\Test1.csv", CSVHeader)
+println("")
+=#
 println("")
