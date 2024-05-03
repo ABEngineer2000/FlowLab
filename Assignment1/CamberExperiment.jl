@@ -35,6 +35,7 @@ function AirfoilAnalysis(AirfoilDat, AlphaRange, DeltaAlpha, n_pan, iterations)
     c_d = zeros(n_a)
     c_dp = zeros(n_a)
     c_m = zeros(n_a)
+    ltd = zeros(n_a)
     converged = zeros(Bool, n_a)
 
     #Solve Numerically for Lift, Drag, and Moment
@@ -42,18 +43,24 @@ function AirfoilAnalysis(AirfoilDat, AlphaRange, DeltaAlpha, n_pan, iterations)
         c_l[i], c_d[i], c_dp[i], c_m[i], converged[i] = Xfoil.solve_alpha(alpha[i], re; iter= iterations, reinit=true)
     end
 
+    #solve for lift_to_drag_ratio
+    for i = 1:n_a
+        ltd[i] = c_l[i]/c_d[i]
+    end
+
     #All coefficients are put into an array for exporting
-    CSVArray = Array{Float16, 2}(undef, length(alpha), 5)
+    CSVArray = Array{Float16, 2}(undef, length(alpha), 6)
     CSVArray[:, 1] = alpha
     CSVArray[:, 2] = c_l
     CSVArray[:, 3] = c_d
     CSVArray[:, 4] = c_m
-    CSVArray[:, 5] = converged
-    CSVHeader = Array{String, 2}(undef, 1, 5)
-    CSVHeader[1,:] = ["alpha";"c_l"; "c_d"; "c_m"; "converged"]
+    CSVArray[:, 5] = ltd
+    CSVArray[:, 6] = converged
+    CSVHeader = Array{String, 2}(undef, 1, 6)
+    CSVHeader[1,:] = ["alpha";"c_l"; "c_d"; "c_m"; "ltd"; "converged"]
 
 
-    return alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader   
+    return alpha, c_l, c_d, c_m, ltd, converged, CSVArray, CSVHeader   
 end
 
 function WriteFile(CSVArray, filename, CSVHeader)
@@ -71,16 +78,20 @@ function plotter(CSVFile, filename)
     c_l = Array_plot[2:n, 2]
     c_d = Array_plot[2:n, 3]
     c_m = Array_plot[2:n, 4]
+    lift_to_drag_ratio = Array_plot[2:n, 5]
+    lift_to_drag_ratio_plot = plot(Alpha, lift_to_drag_ratio, label=false, xlabel="Angle of Attack (degrees)", ylabel="Lift To Drag Ratio")
     c_lplot = plot(Alpha, c_l, label=false, xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
     c_dplot = plot(Alpha, c_d, label=false, xlabel="Angle of Attack (degrees)", ylabel="Drag Coefficient")
     c_mplot = plot(Alpha, c_m, label=false, xlabel="Angle of Attack (degrees)", ylabel="Moment Coefficient")
     savefig(c_lplot, "$(filename)_lift_plot.png")
     savefig(c_dplot,"$(filename)_Drag_plot.png")
     savefig(c_mplot,"$(filename)_Moment_plot.png")
+    savefig(lift_to_drag_ratio_plot, "$(filename)_LiftToDrag_plot.png")
+    
 end
 
 #initialize variables will end up changes these for each test
-camber = 9.5
+camber = 3
 thickness = 12
 AlphaRange = [-9 16]
 DeltaAlpha = 1
@@ -91,7 +102,8 @@ AirfoilDat = "Assignment1\\CamberedAirfoils\\$(camber)PercentCamber_NACA2412.txt
 
 
 #call functions here
-alpha, c_l, c_d, c_m, converged, CSVArray, CSVHeader = AirfoilAnalysis(AirfoilDat, AlphaRange, DeltaAlpha, n_pan, iterations)
+alpha, c_l, c_d, c_m, ltd, converged, CSVArray, CSVHeader = AirfoilAnalysis(AirfoilDat, AlphaRange, DeltaAlpha, n_pan, iterations)
+println("")
 filename_i = "$(filename)Camber_Percent_$(camber).csv"
 WriteFile(CSVArray, filename_i, CSVHeader)
 plotter("$(filename)Camber_Percent_$(camber).csv", "$(filename)Camber_Percent_$(camber)_plot.png")
