@@ -15,7 +15,7 @@ function ARTest(AspectRatio, wingspan) #function assuming square wing
         end
     end
     CSV = Array{Float64, 2}(undef, length(CF[1,:]), 8) # 8 columns for each component of force, moment as well as CDiff and alpha
-    CSV[:,1] = alpha #first column is angle of attack, order will go x y z force, then x y z moment, then CDiff
+    CSV[:,1] = alpha*180/pi #first column is angle of attack, order will go x y z force, then x y z moment, then CDiff
     CSV[:,2] = CF[1,:]
     CSV[:,3] = CF[2, :]
     CSV[:,4] = CF[3, :]
@@ -23,7 +23,7 @@ function ARTest(AspectRatio, wingspan) #function assuming square wing
     CSV[:,6] = CM[2, :]
     CSV[:,7] = CM[3, :]
     CSV[:,8] = CDiff 
-    CSVHeader = ["alpha","Clx", "Cly", "Clz", "Cmx", "Cmy", "Cmz", "CDiff"]
+    CSVHeader = ["alpha" "Clx" "Cly" "Clz" "Cmx" "Cmy" "Cmz" "CDiff"]
 
     return CSV, CSVHeader
 end
@@ -77,6 +77,7 @@ end
 #CF, CM, CDiff = VLM(40, 2, 10, 1*pi/180, 0 , [0.0; 0.0; 0.0;])
 #b = ARTest(2, 4)
 CSVTest, CSVTestHeader = ARTest(5, 4)
+WriteFile(CSVTest, "Assignment2\\CSVTest1.csv", CSVTestHeader)
 
 #=
 println("X Direction")
