@@ -22,7 +22,7 @@ cref = 2.0 #reference chord length
 bref = 20.0 #reference span
 Rref = [0, 0, 0] #referrence location for all rotations/moments
 Vinf = 1.0 #free stream velocity
-alpha = 1*pi/180 #pitch angle of attack in radians!
+alpha = (50)*pi/180 #pitch angle of attack in radians!
 beta = 0.0 # yaw angle of attack
 omega = [0.0; 0.0; 0.0] #roll angle of attack
 
@@ -36,8 +36,8 @@ surfaces = [surface]
 system = steady_analysis(surfaces, ref, fs; symmetric = true)
 CF, CM = body_forces(system)
 
-CD, CY, CL = CF
-Cl, Cm, Cn = CM
+CD, CY, CL = CF #x, y, z force coefficients relative to referrence frame
+Cl, Cm, Cn = CM #x, y, z moment coefficients relative to referrence frame
 
 println(" ")
 println(CF)
