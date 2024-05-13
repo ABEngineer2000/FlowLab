@@ -23,8 +23,7 @@ function ARTest(AspectRatio, wingspan) #function assuming square wing
     CSV[:,6] = CM[2, :]
     CSV[:,7] = CM[3, :]
     CSV[:,8] = CDiff 
-    CSVHeader = ["alpha" "Clx" "Cly" "Clz" "Cmx" "Cmy" "Cmz" "CDiff"]
-
+    CSVHeader = ["alpha" "Clx" "Cly" "Clz" "Cmx" "Cmy" "Cmz" "CDiff"] # don't add commas or else it will mess things up.
     return CSV, CSVHeader
 end
 
@@ -67,18 +66,56 @@ function WriteFile(CSVArray, filename, CSVHeader) #write files to CSV
     end
 end
 
-#need to finish this function
-function plotter(CSVFile, filename, CSVHeader)
+#plots lift to drag ratio or wing efficiency for the test
+function LiftToDrag(CSVFile)
     Array_plot = readdlm(CSVFile, ',')
-    n = size(Array_plot, 1) - 1
+    n = length(Array_plot[:, 1]) - 1 #it is the the length of the first column minus the first entry which is a header
+    Header = Array_plot[1, :]
+    Alpha = Array_plot[2:n + 1, 1]
+    clx = Array{Float64, 1}(undef, n) #initialize variables
+    clz = Array{Float64, 1}(undef, n)
+    CDiff = Array{Float64, 1}(undef, n)
+    LiftToDrag = Array{Float64, 1}(undef, n)
+    clx = Array_plot[2:n, 2]
+    clz = Array_plot[2:n, 4]
+    CDiff = Array_plot[2:n, 8]
+    #Lift to drag ratio calculations
+    for i = 1:length(clx)
+        LiftToDrag[i] = clz[i]/(abs(clx[i])+abs(CDiff[i]))
+        if LiftToDrag[i] > 5000 #I added in this condition because at 0 both coefficients should be 0 and so it is trying to divide 0 over 0
+            LiftToDrag[i] = 0
+        end
+    end
+    #=
+    plot1 = plot(Alpha, LiftToDrag, label=false, xlabel="Alpha (degrees)", ylabel="Lift to Drag Ratio")
+    #debugging
+    #=
+    println(length(LiftToDrag))
+    println(length(Alpha))
+    =# 
+    savefig(plot1, "Assignment2\\$(filename)WingEfficiency.png")
+    return plot1
+    =#
+    return LiftToDrag, Alpha
+end
+plot()
+function ARTestRepeater(ARRange, wingspan, filename) #basically this function inputs a range of aspect ratios + wingspan and will output a graph with all the plots on it
+    for i = 1:length(ARRange)
+        CSV, CSVHeader= ARTest(ARRange[i], wingspan)
+        WriteFile(CSV, "Assignment2\\AspectRatio_$(ARRange[i]).csv", CSVHeader)
+        LTD, Alpha = LiftToDrag("Assignment2\\AspectRatio_$(ARRange[i]).csv")
+        plot1 = plot!(Alpha, LTD, label= "Aspect Ratio: $(ARRange[i])", xlabel="Alpha(degrees)", ylabel="Lift to Drag Ratio")
+        savefig(plot1, "Assignment2\\$(filename).png")
+    end
+
 end
 
 #Testing functions
 #CF, CM, CDiff = VLM(40, 2, 10, 1*pi/180, 0 , [0.0; 0.0; 0.0;])
 #b = ARTest(2, 4)
-CSVTest, CSVTestHeader = ARTest(5, 4)
-WriteFile(CSVTest, "Assignment2\\CSVTest1.csv", CSVTestHeader)
-
+#ACSVTest, CSVTestHeader = ARTest(5, 4)
+#WriteFile(CSVTest, "Assignment2\\CSVTest1.csv", CSVTestHeader)
+#plotter("Assignment2\\CSVTest1.csv", "AR5")
 #=
 println("X Direction")
 println(CF[1, :])
@@ -88,3 +125,5 @@ println("Z Direction")
 println(CF[3, :])
 =#
 println("") # I added this so it doesn't print those huge vectors
+
+ARTestRepeater([0.5 1 2 5], 4.0 , "AR_Analysis2")
