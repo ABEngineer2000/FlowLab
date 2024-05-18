@@ -24,11 +24,11 @@ function Tail_Analysis(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_s
         HS_dclz_dalpha = Derivative_calc(alpha_range, hCFz)
         HS_dcmy_dalpha = Derivative_calc(alpha_range, hCMy)
 
-        VS_dclz_dalpha = Derivative_calc(alpha_range, vCFz)
+        VS_dclz_dalpha = Derivative_calc(alpha_range, vCFz) #don't need either of these for pitch stability
         VS_dcmy_dalpha = Derivative_calc(alpha_range, vCMy)
 
         #compute tail volume coefficient. See page 94 Flight Vehicle Design
-        Tail_Volume_Coefficient = (HS_span * HS_chord)/(wingspan * chord_length)
+        Tail_Volume_Coefficient = (HS_span * HS_chord)/(wingspan * chord_length) #this is based on pitch stability
         #compute stability derivatives. Note that this is assuming the cmy moments oppose the moments created by clz
         DCmg_Dalpha = Array{Float64, 1}(undef, length(wing_dclz_dalpha))
         for i = 1:length(wing_dclz_dalpha)
@@ -36,16 +36,35 @@ function Tail_Analysis(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_s
         end
         #creates a CSV with all the stability data
         CSV = Array{Float64, 2}(undef, length(DCmg_Dalpha), 2)
-        CSV[:, 1] = wing_dclz_dalpha
+        CSV[:, 1] = alpha_range
         CSV[:, 2] = DCmg_Dalpha
-        CSV_Header = ["Wing Dclz" "DCmg_Dalpha"]
+        CSV_Header = ["Alpha (Degrees)" "DCmg_Dalpha"]
         WriteFile(CSV, filename, CSV_Header)
+        return Tail_Volume_Coefficient, DCmg_Dalpha #returns tail volume coefficient and main stability derivative
 end
 
-function Tail_Volume_Coefficient_Repeater() #This function will call Tail_Analysis for ever tail volume coefficient you want to analyze
+function Tail_Volume_Coefficient_Repeater(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_span, tail_distance, wing_distance, n, alpha_range, filename, Tail_Volume_Scalars) #This function will call Tail_Analysis for ever tail volume coefficient you want to analyze
     #after that, it will plot each solution on a curve and save that curve to desired file destination
-    #it will specifically change the tail volume coefficient by multiplying both horizontal tail and chord by the same scalar
-    
+    #it will specifically change the tail volume coefficient by multiplying both horizontal tail and chord by all the tail volume scalars
+    #it will calculate the stability derivatives about the center of gravity
+    #note that alpha range must include all values of alpha you want to analyze
+    filename1 = Array{String, 1}(undef, length(Tail_Volume_Scalars))
+    HS_span1 = Array{Float64, 1}(undef, length(Tail_Volume_Scalars))
+    HS_chord1 = Array{Float64, 1}(undef, length(Tail_Volume_Scalars))
+    Tail_Volume_Coefficient = Array{Float64, 1}(undef, length(Tail_Volume_Scalars))
+    DCmg_Dalpha = Array{Float64, 2}(undef, length(alpha_range), length(Tail_Volume_Scalars))
+    plot() #resets plot
+    for i =1:length(Tail_Volume_Scalars)
+        HS_span1[i] = HS_span * Tail_Volume_Scalars[i] #Creates new Horizontal Stabilizer coefficients based on the Tail Volume Scalars
+        HS_chord1[i] = HS_chord * Tail_Volume_Scalars[i]
+        Tail_Volume_Coefficient[i] = (HS_span1[i] * HS_chord1[i])/(wingspan * chord_length) #Computes new tail volume coefficient
+        filename1[i] = "$(filename)_TailVolumeCoefficient_$(Tail_Volume_Coefficient[i])"
+        Tail_Volume_Coefficient[i], DCmg_Dalpha[:, i] = Tail_Analysis(chord_length, wingspan, HS_chord1[i], HS_span1[i], VS_chord, VS_span, tail_distance, wing_distance, n, alpha_range, "$(filename1[i]).csv")
+        plot1 = plot!(alpha_range, DCmg_Dalpha[:, i], label= "Tail Volume Coefficient: $(Tail_Volume_Coefficient[i])", xlabel="Alpha(degrees)", ylabel="Stability Derivative")
+        savefig(plot1, "$(filename).png")
+    end
+
+
 
 end
 
@@ -134,8 +153,8 @@ function RangeMaker(range, stepsize) #creates an array of values given the range
     return x
 end
 
-#x = collect(1:0.5:5) #this function tests ranges
-#println(x)
-Tail_Analysis(4, 10, 2, 4, 3, 4, 7, 2, 0.85, RangeMaker([-1 1], 0.01), "Assignment2\\TailTest.csv")
+#Tail_Analysis(4, 10, 2, 4, 3, 4, 7, 2, 0.85, RangeMaker([-1 1], 0.01), "Assignment2\\TailTest.csv") #This was for testing the Tail_Analysis funtion
+Tail_Volume_Coefficient_Repeater(4, 10, 2, 4, 3, 4, 7, 2, 0.85, RangeMaker([-1 1], 0.01), "Assignment2\\Tail_Volume_Research_Docs\\Test1", [1 2])
+
 
 println("") #I add this here so it won't print anything unless I need it to
