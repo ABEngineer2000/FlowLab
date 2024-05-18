@@ -42,6 +42,13 @@ function Tail_Analysis(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_s
         WriteFile(CSV, filename, CSV_Header)
 end
 
+function Tail_Volume_Coefficient_Repeater() #This function will call Tail_Analysis for ever tail volume coefficient you want to analyze
+    #after that, it will plot each solution on a curve and save that curve to desired file destination
+    #it will specifically change the tail volume coefficient by multiplying both horizontal tail and chord by the same scalar
+    
+
+end
+
 function WriteFile(CSVArray, filename, CSVHeader) #write files to CSV
     open(filename, "w") do io
         writedlm(io, CSVHeader, ',')
@@ -62,11 +69,6 @@ function Derivative_calc(x, y) #inpute the x values and corresponding y values o
         end
     end
     return y_prime
-end
-
-function plotter(CSV, filename) #This function will plot the results based on a csv file and specified filename
-
-
 end
 
 function VLM_AlphaRange(Wingspan, chord_length, alpha_range) #This function performs a VLM analysis on a range of alpha values assuming rectangular wingshape
