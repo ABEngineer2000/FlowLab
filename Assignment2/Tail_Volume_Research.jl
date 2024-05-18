@@ -1,6 +1,6 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, FiniteDiff, Ranges
+using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, FiniteDiff
 
-function Tail_Analysis(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_span, tail_distance, wing_distance, n, alpha_range) #Assuming you have a rectangular wing and tail. HS 
+function Tail_Analysis(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_span, tail_distance, wing_distance, n, alpha_range, filename) #Assuming you have a rectangular wing and tail. HS 
     #is horizontal stabilizer whilst VS is vertical stabilizer. Tail distance is the distance from the center
     #of lift of the tail to the center of gravity whilst wing distance is the distance from the center
     #of lift of the wing to the center of gravity
@@ -34,8 +34,19 @@ function Tail_Analysis(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_s
         for i = 1:length(wing_dclz_dalpha)
             DCmg_Dalpha[i] = wing_dcmy_dalpha[i] + HS_dcmy_dalpha[i]  - (wing_distance/chord_length)*wing_dclz_dalpha[i] - n*Tail_Volume_Coefficient*HS_dclz_dalpha[i]
         end
-        
+        #creates a CSV with all the stability data
+        CSV = Array{Float64, 2}(undef, length(DCmg_Dalpha), 2)
+        CSV[:, 1] = wing_dclz_dalpha
+        CSV[:, 2] = DCmg_Dalpha
+        CSV_Header = ["Wing Dclz" "DCmg_Dalpha"]
+        WriteFile(CSV, filename, CSV_Header)
+end
 
+function WriteFile(CSVArray, filename, CSVHeader) #write files to CSV
+    open(filename, "w") do io
+        writedlm(io, CSVHeader, ',')
+        writedlm(io, CSVArray, ',')
+    end
 end
 
 function Derivative_calc(x, y) #inpute the x values and corresponding y values of the function you want to take the first derivative of
@@ -67,7 +78,7 @@ function VLM_AlphaRange(Wingspan, chord_length, alpha_range) #This function perf
     Cmz = Array{Float64, 1}(undef, length(alpha_range))
     CDiff = Array{Float64, 1}(undef, length(alpha_range))
     for i = 1:length(alpha_range)
-        CFx[i], CFy[i], CFz[i], Cmx[i], Cmy[i], Cmz[i], CDiff[i] = VLM(Wingspan*chord_length, chord_length, Wingspan,alpha_range[i],0.0, [0.0; 0.0; 0.0], 1) #Assuming beta and omega are 0
+        CFx[i], CFy[i], CFz[i], Cmx[i], Cmy[i], Cmz[i], CDiff[i] = VLM(Wingspan*chord_length, chord_length, Wingspan,alpha_range[i]*pi/180 ,0.0, [0.0; 0.0; 0.0], 1) #Assuming beta and omega are 0 and it also converts alpha_range into radians
     end
     return CFx, CFy, CFz, Cmx, Cmy, Cmz, CDiff #returns the coefficients for force and moment in cartesian coordinates
 
@@ -83,10 +94,10 @@ function VLM(Sref, cref, bref, alpha, beta, omega, Vinf_in) #Performs a Vortex l
     #fc = fill((xc) -> 0, 2) # camberline function for each section, I don't think I need this
 
     Panels_span = 30
-    Panels_chord = 20
+    Panels_chord = 15
     Spacing_type_span = Cosine()
     Spacing_type_chord = Uniform()
-    Rref = [0,0,0]
+    Rref = [0.0,0.0,0.0]
     Vinf = 1
     ref = Reference(Sref, cref, bref, Rref, Vinf)
     fs = Freestream(Vinf, alpha, beta, omega) #Define freestream Parameters
@@ -105,8 +116,24 @@ function VLM(Sref, cref, bref, alpha, beta, omega, Vinf_in) #Performs a Vortex l
     return CFx, CFy, CFz, CMx, CMy, CMz, CDiff
 end
 
+function RangeMaker(range, stepsize) #creates an array of values given the range you want and stepsize
+    n = round(Int, abs((range[2] - range[1])/stepsize))
+    x = Array{Float64, 1}(undef, n)
+    for i = 1:n
+        if i < 2
+            x[1] = range[1]
+        elseif i > 1 && i < n
+            x[i] = x[i - 1] + stepsize
+
+        else
+            x[i] = range[2]
+        end
+    end
+    return x
+end
+
 #x = collect(1:0.5:5) #this function tests ranges
 #println(x)
-
+Tail_Analysis(4, 10, 2, 4, 3, 4, 7, 2, 0.85, RangeMaker([-1 1], 0.01), "Assignment2\\TailTest.csv")
 
 println("") #I add this here so it won't print anything unless I need it to
