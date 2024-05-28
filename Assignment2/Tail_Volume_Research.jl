@@ -193,8 +193,8 @@ tail_distance = 10
 wing_distance = 0
 n = 1
 alpha_range  = RangeMaker([-1 1], 0.05)
-filename = "Assignment2\\Tail_Volume_Research_Docs\\Test9"
-Tail_Volume_Scalars = [1 2]
+filename = "Assignment2\\Tail_Volume_Research_Docs\\Test10"
+Tail_Volume_Scalars = [1 2 3 4 5]
 Tail_Volume_Coefficient_Repeater(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_span, tail_distance, wing_distance, n ,alpha_range, filename, Tail_Volume_Scalars)
 
 println("") #I add this here so it won't print anything unless I need it to

@@ -7,11 +7,11 @@ function ARTest(AspectRatio, wingspan, Vinf_in) #function assuming square wing
     CF = Array{Float64, 2}(undef, 3, 30)
     CM = Array{Float64, 2}(undef, 3, 30)
     CDiff = Array{Float64, 1}(undef, 30)
-    alpha[1] = 3*pi/180 #start angle of attack at -15 degrees
+    alpha[1] = -15*pi/180 #start angle of attack at -15 degrees
     for i = 1:length(alpha)
         CF[1,i], CF[2,i], CF[3, i], CM[1, i], CM[2, i], CM[3, i], CDiff[i] = VLM(wingspan*c, c, wingspan, alpha[i], 0, [0.0; 0.0; 0.0], Vinf_in) #solve for lift, drag, and moment
         if i < 30 #I added this so it doesn't try to increment alpha past the number of elements in the array
-            alpha[i + 1] = alpha[i] + 0.003*pi/180 #increment each angle of attack by 1 radian
+            alpha[i + 1] = alpha[i] + 1*pi/180 #increment each angle of attack by 1 degree
         end
     end
     CSV = Array{Float64, 2}(undef, length(CF[1,:]), 8) # 8 columns for each component of force, moment as well as CDiff and alpha
@@ -41,7 +41,7 @@ function VLM(Sref, cref, bref, alpha, beta, omega, Vinf_in)
     Spacing_type_span = Cosine()
     Spacing_type_chord = Uniform()
     Rref = [0,0,0]
-    Vinf = 100
+    Vinf = 1.0
     ref = Reference(Sref, cref, bref, Rref, Vinf)
     fs = Freestream(Vinf, alpha, beta, omega) #Define freestream Parameters
 
@@ -102,13 +102,16 @@ plot() #added this to reset the plots
 function ARTestRepeater(ARRange, wingspan, filename, Vinf) #basically this function inputs a range of aspect ratios + wingspan and will output a graph with all the plots on it
     for i = 1:length(ARRange)
         CSV, CSVHeader= ARTest(ARRange[i], wingspan, Vinf)
-        WriteFile(CSV, "Assignment2\\AspectRatio_$(ARRange[i])_Vinf_$(Vinf).csv", CSVHeader)
-        LTD, Alpha = LiftToDrag("Assignment2\\AspectRatio_$(ARRange[i])_Vinf_$(Vinf).csv")
-        plot1 = plot!(Alpha, LTD, label= "Aspect Ratio: $(ARRange[i])", xlabel="Alpha(degrees)", ylabel="Lift to Drag Ratio")
-        savefig(plot1, "Assignment2\\$(filename).png")
+        WriteFile(CSV, "$(filename)AspectRatio_$(ARRange[i])_Vinf_$(Vinf).csv", CSVHeader)
+        #LTD, Alpha = LiftToDrag("Assignment2\\AspectRatio_$(ARRange[i])_Vinf_$(Vinf).csv")
+        Alpha = CSV[:,1]
+        Lift = CSV[:,4]
+        plot1 = plot!(Alpha, Lift, label= "Aspect Ratio: $(ARRange[i])", xlabel="Alpha(degrees)", ylabel="Lift Coefficient")
+        savefig(plot1, "$(filename).png")
     end
 
 end
+
 
 #Testing functions
 #CF, CM, CDiff = VLM(40, 2, 10, 1*pi/180, 0 , [0.0; 0.0; 0.0;])
@@ -125,5 +128,9 @@ println("Z Direction")
 println(CF[3, :])
 =#
 println("") # I added this so it doesn't print those huge vectors
+ARRange = [0.5 1 1.5 2 2.5 3]
+wingspan = 7
+filename = "Assignment2\\New_AR_Analysis\\AR_Analysis_LiftTest2"
+Vinf = 1.0
 
-ARTestRepeater([0.5 1 2 25], 7 , "AR_Analysis13", 10000) #input range of aspect ratios, chord length, filename, and Vinf
+ARTestRepeater(ARRange, wingspan , filename, Vinf) #input range of aspect ratios, chord length, filename, and Vinf
