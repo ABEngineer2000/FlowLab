@@ -58,6 +58,7 @@ function Tail_Volume_Coefficient_Repeater(chord_length, wingspan, HS_chord, HS_s
     Tail_Volume_Coefficient = Array{Float64, 1}(undef, length(Tail_Volume_Scalars))
     DCmg_Dalpha = Array{Float64, 2}(undef, length(alpha_range), length(Tail_Volume_Scalars))
     Cmg = Array{Float64, 2}(undef, length(alpha_range), length(Tail_Volume_Scalars)) #This is for trim stability
+    StabilityDerivConstant = Array{Float64, 1}(undef, length(Tail_Volume_Scalars)) #This is a vector which contains each of the constants that the stability derivatives go to.
     plot() #resets plot
     for i =1:length(Tail_Volume_Scalars)
         HS_span1[i] = HS_span * Tail_Volume_Scalars[i] #Creates new Horizontal Stabilizer coefficients based on the Tail Volume Scalars
@@ -67,11 +68,18 @@ function Tail_Volume_Coefficient_Repeater(chord_length, wingspan, HS_chord, HS_s
         Tail_Volume_Coefficient[i], DCmg_Dalpha[:, i], Cmg[:, i] = Tail_Analysis(chord_length, wingspan, HS_chord1[i], HS_span1[i], VS_chord, VS_span, tail_distance, wing_distance, n, alpha_range, "$(filename1[i]).csv")
         plot1 = plot!(alpha_range, DCmg_Dalpha[:, i], label= "Tail Volume Coefficient: $(Tail_Volume_Coefficient[i])", xlabel="Alpha(degrees)", ylabel="Stability Derivative")
         savefig(plot1, "$(filename).png")
+        #return DCmg_Dalpha #have to return this for the next for loop
+    end
+    plot() #resets the plot
+    for i = 1:length(Tail_Volume_Scalars)
+        StabilityDerivConstant[i] = DCmg_Dalpha[round(Int, 0.25*length(DCmg_Dalpha[:, 1])), i]
+        plot2 = scatter(Tail_Volume_Scalars, StabilityDerivConstant, ylim=(-0.216, -0.0790), label = false, xlabel="Tail Volume Coefficient", ylabel="Stability Derivative")
+        savefig(plot2, "$(filename)_StabilityDerivativeConstant.png")
     end
     plot()
     for i = 1:length(Tail_Volume_Scalars) #plot trim stability for each tail volume scalar
-        plot2 = plot!(alpha_range, Cmg[:, i], label= "Tail Volume Coefficient: $(Tail_Volume_Coefficient[i])", xlabel = "Alpha (degrees)", ylabel = "Cmg")
-        savefig(plot2, "$(filename)_TrimStability.png")
+        plot3 = plot!(alpha_range, Cmg[:, i], label= "Tail Volume Coefficient: $(Tail_Volume_Coefficient[i])", xlabel = "Alpha (degrees)", ylabel = "Cmg")
+        savefig(plot3, "$(filename)_TrimStability.png")
         CSV_Header = ["Alpha_Range" "Cmg"]
         CSV_Array = Array{Float64, 2}(undef, length(alpha_range), 2)
         CSV_Array[:, 1] = alpha_range
@@ -190,11 +198,11 @@ HS_span = 2
 VS_chord = 3 
 VS_span = 4
 tail_distance = 10
-wing_distance = 0
+wing_distance = 2
 n = 1
 alpha_range  = RangeMaker([-1 1], 0.05)
-filename = "Assignment2\\Tail_Volume_Research_Docs\\Test10"
-Tail_Volume_Scalars = [1 2 3 4 5]
+filename = "Assignment2\\Tail_Volume_Research_Docs\\Test12"
+Tail_Volume_Scalars = [1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0]
 Tail_Volume_Coefficient_Repeater(chord_length, wingspan, HS_chord, HS_span, VS_chord, VS_span, tail_distance, wing_distance, n ,alpha_range, filename, Tail_Volume_Scalars)
 
 println("") #I add this here so it won't print anything unless I need it to
