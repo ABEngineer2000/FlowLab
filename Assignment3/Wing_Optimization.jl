@@ -9,10 +9,11 @@ using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFile
 #set lift force, pitch angle, wingspan, and speed as constraints
 
 function Wing_Optimization!(g, x)
-    CFx, CFy, CFz, CMx, CMy, CMz, CDiff = VLM(x[1], x[2])
+    CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(x[1], x[2], x[3])
 
-    g[1] = x[2] - 8.0  #wingspan has to be 8.0 meters. Basically x[2] - 8 has to be 0.
-    g[2] = 0.5*1.007*x[1]*x[2]*CFz - 1.7 #minimum lift must be 1.7 newtons.
+    g[1] = x[3] - 8.0  #wingspan has to be 8.0 meters. Basically x[2] - 8 has to be 0.
+    g[2] = 0.5*1.007*wing_area*CFz - 1.7 #minimum lift must be 1.7 newtons.
+    #this is just the lift equation using coefficient of lift. The density of air is 1.007 m3/kg for an alititude of 2000 meters
     return CDiff
 end
 
@@ -59,13 +60,13 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     phi = Array{Float64, 1}(undef, length(chord_distribution))
     panel_area = Array{Float64, 1}(undef, length(chord_distribution))
     for i = 1:length(chord_distribution)
-    xle[i] = leading_edge_distribution[i] #each leading edge is according to the input leading edge distribution vector 
-    yle[i] = (i - 1)*span/length(chord_distribution) #spanwise placement of the panels. Each planel is placed according to its top left corner
-    zle[i] = 0.0 #vertical direction, I will assume a flat wing so my z coordinate is 0.
-    chord[i] = chord_distribution[i] + 0.0 #first number is chord at the fueslage, the next is the chord at the wingtip.
-    theta[i] = 0.0 #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
-    phi[i] = 0.0 #This is rotation about the x-axis.
-    panel_area[i] = chord_distribution[i] * span/length(chord_distribution) #outputs the area for each panel
+        xle[i] = leading_edge_distribution[i] #each leading edge is according to the input leading edge distribution vector 
+        yle[i] = (i - 1)*span/length(chord_distribution) #spanwise placement of the panels. Each planel is placed according to its top left corner
+        zle[i] = 0.0 #vertical direction, I will assume a flat wing so my z coordinate is 0.
+        chord[i] = chord_distribution[i] + 0.0 #first number is chord at the fueslage, the next is the chord at the wingtip.
+        theta[i] = 0.0 #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
+        phi[i] = 0.0 #This is rotation about the x-axis.
+        panel_area[i] = chord_distribution[i] * span/(length(chord_distribution) * 2) #outputs the area for each panel
     end
     fc = fill((xc) -> 0, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
@@ -77,8 +78,9 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
     Vinf = 1.0
-    ref = Reference(sum(panel_area), mean(chord_distribution), span, Rref, Vinf)
-    fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters
+    wing_area = sum(panel_area)*2 #this gives wing area for lift calculations that I will use in the optimization
+    ref = Reference(wing_area, mean(chord_distribution), span, Rref, Vinf)
+    fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters 
 
     #create the surface
     grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord; fc = fc, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
@@ -91,7 +93,7 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
 
-    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff #, grid, surface these I added as outputs for troubleshooting
+    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area #, grid, surface these I added as outputs for troubleshooting
 end
 
 #defining variables
@@ -111,8 +113,8 @@ x0 = [-0.5; -0.5]
 ng = 2
 xopt, fopt, info = minimize(fx!, x0, ng)
 =#
-CFx, CFy, CFz, CMx, CMy, CMz, CDiff = VLM([0.0 0.0], [3.0 3.0], 8)
+CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM([0.0 0.0], [3.0 3.0], 8)
 println("")
 println(CFz)
-
+println(wing_area)
 #println(surface)
