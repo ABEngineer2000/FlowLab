@@ -8,9 +8,12 @@ using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFile
 #Set my f as my induced drag
 #set lift force, pitch angle, wingspan, and speed as constraints
 
-function Wing_Optimization(g, x)
+function Wing_Optimization!(g, x)
     CFx, CFy, CFz, CMx, CMy, CMz, CDiff = VLM(x[1], x[2])
 
+    g[1] = x[2] - 8.0  #wingspan has to be 8.0 meters. Basically x[2] - 8 has to be 0.
+    g[2] = 0.5*1.007*x[1]*x[2]*CFz - 1.7 #minimum lift must be 1.7 newtons.
+    return CDiff
 end
 
 
@@ -27,6 +30,16 @@ function fx!(g, x) #This is my test function for optimization
     return y
 end
 
+#I didn't want to download another julia package so I just created my own fucntion to find the mean
+function mean(x)
+    sum = 0.0
+    for i = 1:length(x)
+        sum = sum + x[i]
+    end
+    m = sum/length(x)
+    return m
+end
+
 #working example for optim
 #=e
 f1(x) = x[1]^2 - 2*x[1]
@@ -36,14 +49,25 @@ min = minimum(results)
 println(min)
 =#
 
-function VLM(chord, span) #Performs a Vortex lattice analysis
-    xle = [0.0, 0.0] #first number is the position of the leading edge closest to the fuselage in the chordwise direction ,2nd is the same thing but with the leading edge at the wingtip
-    yle = [0.0, span/2] #spanwise direction
-    zle = [0.0, 0.0] #vertical direction, use this for dihedral
-    chordref = [chord, chord] #first number is chord at the fueslage, the next is the chord at the wingtip.
-    theta = [0.0, 0.0] #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
-    phi = [0.0, 0.0] #This is rotation about the x-axis.
-    #fc = fill((xc) -> 0, 2) # camberline function for each section, I don't think I need this
+function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vortex lattice analysis
+    #this function requires two distribution vecotrs which contain the 2d wing geometry.
+    xle = Array{Float64, 1}(undef, length(chord_distribution))
+    yle = Array{Float64, 1}(undef, length(chord_distribution))
+    zle = Array{Float64, 1}(undef, length(chord_distribution))
+    chord = Array{Float64, 1}(undef, length(chord_distribution))
+    theta = Array{Float64, 1}(undef, length(chord_distribution))
+    phi = Array{Float64, 1}(undef, length(chord_distribution))
+    panel_area = Array{Float64, 1}(undef, length(chord_distribution))
+    for i = 1:length(chord_distribution)
+    xle[i] = leading_edge_distribution[i] #each leading edge is according to the input leading edge distribution vector 
+    yle[i] = (i - 1)*span/length(chord_distribution) #spanwise placement of the panels. Each planel is placed according to its top left corner
+    zle[i] = 0.0 #vertical direction, I will assume a flat wing so my z coordinate is 0.
+    chord[i] = chord_distribution[i] + 0.0 #first number is chord at the fueslage, the next is the chord at the wingtip.
+    theta[i] = 0.0 #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
+    phi[i] = 0.0 #This is rotation about the x-axis.
+    panel_area[i] = chord_distribution[i] * span/length(chord_distribution) #outputs the area for each panel
+    end
+    fc = fill((xc) -> 0, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
     alpha = 5*pi/180 #set the angle of attack to 5 degrees
 
@@ -53,11 +77,11 @@ function VLM(chord, span) #Performs a Vortex lattice analysis
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
     Vinf = 1.0
-    ref = Reference(chord*span, chord, span, Rref, Vinf)
+    ref = Reference(sum(panel_area), mean(chord_distribution), span, Rref, Vinf)
     fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters
 
     #create the surface
-    grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
+    grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord; fc = fc, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
     surfaces = [surface]
 
     #perform steady state analysis
@@ -67,7 +91,7 @@ function VLM(chord, span) #Performs a Vortex lattice analysis
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
 
-    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff
+    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff #, grid, surface these I added as outputs for troubleshooting
 end
 
 #defining variables
@@ -75,6 +99,11 @@ pitch_angle = 5*pi/180 #set pitch angle to 5 degrees
 min_lift = 1.7 #set the minimum lift weight to 1.7 Newtons.
 wing_span = 8.0 #set the wingspan to 8 meters
 speed = 1.0 #set the speed to 1 m/s
+density = 1.007 #This is in kg/m3
+
+x0 = [2.0, 8.0]
+ng = 3
+#xopt, fopt, info = minimize(Wing_Optimization!, x0, ng)
 
 #This is a working snow example using the fx function
 #=
@@ -82,5 +111,8 @@ x0 = [-0.5; -0.5]
 ng = 2
 xopt, fopt, info = minimize(fx!, x0, ng)
 =#
-
+CFx, CFy, CFz, CMx, CMy, CMz, CDiff = VLM([0.0 0.0], [3.0 3.0], 8)
 println("")
+println(CFz)
+
+#println(surface)
