@@ -1,4 +1,4 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, Optim, SNOW
+using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW
 
 #Plan of Action
 #The induced drag from VLM will be the function I am optimizing.
@@ -18,12 +18,22 @@ function Wing_Optimization!(g, x)
         leading_edge_distribution[i] = x[i - 1] + (x[i-1] - x[i])*0.25 #start at the previous chord position and add whatever the difference between the quarter chord lengths there is.
         end
     end
+    #println(x)
     CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, x, 8.0)
 
-    g[1] = 0.5*1.007*wing_area*CFz #minimum lift must be 1.7 newtons. I'm deciding to put bounds on this constraint when I call the function.
+    g = Array{Float64, 1}(undef, length(x) + 1)
+    g[1] = -0.5*1.007*wing_area*CFz + 1.7 #minimum lift must be 1.7 newtons. I'm deciding to put bounds on this constraint when I call the function.
+    #here's my monotinicity function to decrease the chord as x progresses
+    
+    for i = 2:length(x)
+        g[i] = x[i - 1] - x[i]
+    end
+    
     #this is just the lift equation using coefficient of lift. The density of air is 1.007 m3/kg for an alititude of 2000 meters
+
+    #debugging
     #println(0.5*1.007*wing_area*CFz)
-    println(CDiff)
+    #println(CDiff)
     return CDiff
 end
 
@@ -116,19 +126,34 @@ density = 1.007 #This is in kg/m3
 
 #setting bounds to pass into the function
 x0 = [2.0, 1.50, 1.25, 1.0, 0.75, 0.5, 0.25]
-gl = 1.7 #set lower limit of lift to 1.7 Newtons
-gu = Inf64 #set upper limit of lift to infinity
+
 lx = Array{Float64, 1}(undef, length(x0))
 ux = Array{Float64, 1}(undef, length(x0))
-options = Options(solver=IPOPT()) #using the IPOPT solver
+#=
+lg = Array{Float64, 1}(undef, length(x0) + 1) #the plus 1 is for the extra constraint
+ug = Array{Float64, 1}(undef, length(x0) + 1)
+=#
+# ----- set some options ------
+ip_options = Dict(
+    "max_iter" => 20,
+    "tol" => 1e-6
+)
+solver = IPOPT(ip_options)
+options = Options(;solver)
 for i = 1:length(x0)
-    lx[i] = 0.1 #minimum chord length is 0.1 meters
-    ux[i] = 7.0 #maximum chord length is 7.0 meters
+        lx[i] = 0.1 #minimum chord length is 0.1 meters
+        ux[i] = 7.0 #maximum chord length is 7.0 meters
 end
-ng = 2
-xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, gl, gu, options)
+
+
+ng = length(x0) + 1 #one extra constraint for lift, then a constraint for each chord length decreasing from the previous one
+lg = -1000 * ones(ng)
+ug = zeros(ng)
+xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
 
+#ng = 2
+#xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux)
 #This is a working snow example using the fx function
 #=
 x0 = [-0.5; -0.5]
