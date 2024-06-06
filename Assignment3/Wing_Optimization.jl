@@ -9,11 +9,21 @@ using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFile
 #set lift force, pitch angle, wingspan, and speed as constraints
 
 function Wing_Optimization!(g, x)
-    CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(x[1], x[2], x[3])
+    leading_edge_distribution = Array{Float64, 1}(undef, length(x))
+    #this for loop keeps all the quarter chords aligned. One of my foced constraints
+    for i = 1:length(x)
+        if i < 2
+            leading_edge_distribution[i] = 0.0
+        else
+        leading_edge_distribution[i] = x[i - 1] + (x[i-1] - x[i])*0.25 #start at the previous chord position and add whatever the difference between the quarter chord lengths there is.
+        end
+    end
+    CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, x, 8.0)
 
-    g[1] = x[3] - 8.0  #wingspan has to be 8.0 meters. Basically x[2] - 8 has to be 0.
-    g[2] = 0.5*1.007*wing_area*CFz - 1.7 #minimum lift must be 1.7 newtons.
+    g[1] = 0.5*1.007*wing_area*CFz #minimum lift must be 1.7 newtons. I'm deciding to put bounds on this constraint when I call the function.
     #this is just the lift equation using coefficient of lift. The density of air is 1.007 m3/kg for an alititude of 2000 meters
+    #println(0.5*1.007*wing_area*CFz)
+    println(CDiff)
     return CDiff
 end
 
@@ -72,8 +82,8 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     beta = 0.0
     alpha = 5*pi/180 #set the angle of attack to 5 degrees
 
-    Panels_span = 30
-    Panels_chord = 15
+    Panels_span = length(xle)
+    Panels_chord = 10
     Spacing_type_span = Cosine()
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
@@ -103,9 +113,21 @@ wing_span = 8.0 #set the wingspan to 8 meters
 speed = 1.0 #set the speed to 1 m/s
 density = 1.007 #This is in kg/m3
 
-x0 = [2.0, 8.0]
-ng = 3
-#xopt, fopt, info = minimize(Wing_Optimization!, x0, ng)
+
+#setting bounds to pass into the function
+x0 = [2.0, 1.50, 1.25, 1.0, 0.75, 0.5, 0.25]
+gl = 1.7 #set lower limit of lift to 1.7 Newtons
+gu = Inf64 #set upper limit of lift to infinity
+lx = Array{Float64, 1}(undef, length(x0))
+ux = Array{Float64, 1}(undef, length(x0))
+options = Options(solver=IPOPT()) #using the IPOPT solver
+for i = 1:length(x0)
+    lx[i] = 0.1 #minimum chord length is 0.1 meters
+    ux[i] = 7.0 #maximum chord length is 7.0 meters
+end
+ng = 2
+xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, gl, gu, options)
+println(xopt)
 
 #This is a working snow example using the fx function
 #=
@@ -113,8 +135,8 @@ x0 = [-0.5; -0.5]
 ng = 2
 xopt, fopt, info = minimize(fx!, x0, ng)
 =#
-CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM([0.0 0.0], [3.0 3.0], 8)
+#CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM([0.0 0.0], [3.0 3.0], 8)
 println("")
-println(CFz)
-println(wing_area)
+#println(CFz)
+#println(wing_area)
 #println(surface)
