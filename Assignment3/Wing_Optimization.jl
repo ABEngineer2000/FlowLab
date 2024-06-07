@@ -20,14 +20,18 @@ function Wing_Optimization!(g, x)
     end
     #println(x)
     CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, x, 8.0)
-
-    g = Array{Float64, 1}(undef, length(x) + 1)
+    #println(0.5*1.007*wing_area*CFz)
+    g = Array{Float64, 1}(undef, length(x))
     g[1] = -0.5*1.007*wing_area*CFz + 1.7 #minimum lift must be 1.7 newtons. I'm deciding to put bounds on this constraint when I call the function.
     #here's my monotinicity function to decrease the chord as x progresses
-    
+    g[2] = x[2] - x[1] + 0.0
+    println(x[2] - x[1]) 
+    g[3] = x[3] - x[2] + 0.0
+    #=
     for i = 2:length(x)
-        g[i] = x[i - 1] - x[i]
+        g[i] = x[i] - x[i - 1]
     end
+    =#
     
     #this is just the lift equation using coefficient of lift. The density of air is 1.007 m3/kg for an alititude of 2000 meters
 
@@ -125,7 +129,7 @@ density = 1.007 #This is in kg/m3
 
 
 #setting bounds to pass into the function
-x0 = [2.0, 1.50, 1.25, 1.0, 0.75, 0.5, 0.25]
+x0 = [2.0, 1.50, 1.25]
 
 lx = Array{Float64, 1}(undef, length(x0))
 ux = Array{Float64, 1}(undef, length(x0))
@@ -146,8 +150,8 @@ for i = 1:length(x0)
 end
 
 
-ng = length(x0) + 1 #one extra constraint for lift, then a constraint for each chord length decreasing from the previous one
-lg = -1000 * ones(ng)
+ng = length(x0) #one extra constraint for lift, then a constraint for each chord length decreasing from the previous one
+lg = -Inf * ones(ng)
 ug = zeros(ng)
 xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
