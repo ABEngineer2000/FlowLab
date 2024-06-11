@@ -53,6 +53,20 @@ function Wing_Optimization!(g, x)
     return CDiff
 end
 
+#This function will input an x vector with the corresponding y values and create an nth order polyomial fit
+function Poly_Regression(x, y, n)
+    A = Array{Float64, 1}(undef, n + 1) #A Matrix with the coefficients of the polynomial
+    x_matrix = Array{Float64, 2}(undef, length(x), n + 1)
+    for i = 1:n + 1
+        for j = 1:length(x)
+            x_matrix[j, i] = x[j]^(i - 1)
+        end
+    end
+    A = inv(transpose(x_matrix)*x_matrix)*transpose(x_matrix)*y
+    #A = [1 2 3 4]
+    return A
+end
+
 
 
 function fx!(g, x) #This is my test function for optimization
@@ -138,7 +152,7 @@ function leading_edge_finder(x) #this function finds the leading edge coordinate
         if i < 2
             leading_edge_distribution[i] = 0.0
         else
-           leading_edge_distribution[i] = x[i - 1] - (x[i-1] - x[i])*0.25 #start at the previous chord position and add whatever the difference between the quarter chord lengths there is.
+           leading_edge_distribution[i] = leading_edge_distribution[i - 1] - (x[i-1] - x[i])*0.25 #start at the previous chord position and add whatever the difference between the quarter chord lengths there is.
         end
     end
     return leading_edge_distribution
@@ -185,7 +199,7 @@ ug = Array{Float64, 1}(undef, length(x0) + 1)
 =#
 # ----- set some options ------
 ip_options = Dict(
-    "max_iter" => 30,
+    "max_iter" => 70,
     "tol" => 1e-6
 )
 solver = IPOPT(ip_options)
@@ -199,10 +213,15 @@ end
 ng = length(x0) #one extra constraint for lift, then a constraint for each chord length decreasing from the previous one
 lg = -Inf*ones(ng)
 ug = -0.000000001*ones(ng)
+
+#Here's where I exectue the coordinate
+
+#=
 xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
 leading_edge_distribution = leading_edge_finder(xopt)
-wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test1")
+wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test3")
+=#
 
 #ng = 2
 #xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux)
@@ -212,6 +231,12 @@ x0 = [-0.5; -0.5]
 ng = 2
 xopt, fopt, info = minimize(fx!, x0, ng)
 =#
+
+
+A = Poly_Regression([1, 2, 3, 4, 5, 6, 7], [1; 4; 8; 15; 16; 17; 19], 2)
+println(A)
+
+
 #CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM([0.0 0.0], [3.0 3.0], 8)
 println("")
 #println(CFz)
