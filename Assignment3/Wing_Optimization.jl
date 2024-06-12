@@ -32,7 +32,7 @@ function Wing_Optimization!(g, x)
     g[1] = -0.5*1.007*wing_area*CFz + 1.7 #minimum lift must be 1.7 newtons. I'm deciding to put bounds on this constraint when I call the function.
     #here's my monotinicity function to decrease the chord as x progresses
     for i = 2:length(x0)
-        g[i] = x[i] - x[i - 1]
+        g[i] = -x[i] + x[i - 1]
     end
     #=
     g[2] = x[2] - x[1] + 0.0
@@ -232,9 +232,10 @@ ng = 2
 xopt, fopt, info = minimize(fx!, x0, ng)
 =#
 
-
+#=
 A = Poly_Regression([1, 2, 3, 4, 5, 6, 7], [1; 4; 8; 15; 16; 17; 19], 2)
 println(A)
+=#
 
 
 #CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM([0.0 0.0], [3.0 3.0], 8)
