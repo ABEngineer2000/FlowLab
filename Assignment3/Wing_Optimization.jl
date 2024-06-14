@@ -8,6 +8,9 @@ using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFile
 #Set my f as my induced drag
 #set lift force, pitch angle, wingspan, and speed as constraints
 
+#tips to add
+#reverse AD for the first line of f then forward AD for g when it comes to taking derivatives.
+
 function Wing_Optimization!(g, x)
     leading_edge_distribution = Array{Float64, 1}(undef, length(x))
     #this for loop keeps all the quarter chords aligned. One of my foced constraints
@@ -28,11 +31,11 @@ function Wing_Optimization!(g, x)
     #println(x)
     CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, x, 8.0)
     #println(0.5*1.007*wing_area*CFz)
-    g = Array{Float64, 1}(undef, length(x))
+    #g = Array{Float64, 1}(undef, length(x))
     g[1] = -0.5*1.007*wing_area*CFz + 1.7 #minimum lift must be 1.7 newtons. I'm deciding to put bounds on this constraint when I call the function.
     #here's my monotinicity function to decrease the chord as x progresses
     for i = 2:length(x0)
-        g[i] = -x[i] + x[i - 1]
+        g[i] = x[i] - x[i - 1]
     end
     #=
     g[2] = x[2] - x[1] + 0.0
@@ -162,7 +165,7 @@ function wing_plotter(xopt, leading_edge_distribution, wingspan, filename) #this
     y_upper = Array{Float64, 1}(undef, length(xopt))
     y_lower = Array{Float64, 1}(undef, length(xopt))
     x = Array{Float64, 1}(undef, length(xopt))
-    deltax = wingspan / (length(leading_edge_distribution) - 1)
+    deltax = wingspan / ((length(leading_edge_distribution) - 1)*2)
     for i = 1:length(xopt)
         if i < 2
             x[i] = 0.0
@@ -199,7 +202,7 @@ ug = Array{Float64, 1}(undef, length(x0) + 1)
 =#
 # ----- set some options ------
 ip_options = Dict(
-    "max_iter" => 70,
+    "max_iter" => 150,
     "tol" => 1e-6
 )
 solver = IPOPT(ip_options)
@@ -214,14 +217,16 @@ ng = length(x0) #one extra constraint for lift, then a constraint for each chord
 lg = -Inf*ones(ng)
 ug = -0.000000001*ones(ng)
 
-#Here's where I exectue the coordinate
+#Here's where I exectue the optimization
 
-#=
+
 xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
 leading_edge_distribution = leading_edge_finder(xopt)
-wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test3")
-=#
+wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test7")
+
+
+#end optimization execution
 
 #ng = 2
 #xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux)
