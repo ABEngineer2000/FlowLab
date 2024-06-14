@@ -70,6 +70,34 @@ function Poly_Regression(x, y, n)
     return A
 end
 
+function Wing_smoother(xopt, deltax) #This function outputs a smoothed wing based on polynomial Poly_Regression
+    #plan for this function
+    #input chord lengths and deltax
+    #creates positional and chord length vecotrs
+    #inputs those values as x and y into Poly_Regression which will output the polynomial coefficients
+    #creates a new chord length vector which has been smoothed
+    #outputs the new chord length vector with the corresponding positional vector
+
+    #create theh position vector x, xopt is the chord length
+    x = Array{Float64, 1}(undef, length(xopt))
+    for i = 1:length(xopt)
+        if i < 2
+            x[i] = 0.0
+        else
+            x[i] = x[i - 1] + deltax
+        end
+    end
+
+    #get the coefficients for the regression fit
+    A = Poly_Regression(x, xopt, 2)
+
+    chord_new = Array{Float64, 1}(undef, length(xopt))
+    for i = 1:length(xopt)
+        chord_new[i] = A[1] + A[2]*x[i] + A[3]*x[i]^2
+    end
+    return x, chord_new
+
+end
 
 
 function fx!(g, x) #This is my test function for optimization
@@ -202,7 +230,7 @@ ug = Array{Float64, 1}(undef, length(x0) + 1)
 =#
 # ----- set some options ------
 ip_options = Dict(
-    "max_iter" => 150,
+    "max_iter" => 25,
     "tol" => 1e-6
 )
 solver = IPOPT(ip_options)
@@ -223,7 +251,10 @@ ug = -0.000000001*ones(ng)
 xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
 leading_edge_distribution = leading_edge_finder(xopt)
-wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test7")
+deltax = (4/(length(xopt) - 1))
+x, y = Wing_smoother(xopt, deltax)
+xnew = leading_edge_finder(y)
+wing_plotter(y, xnew, 8.0, "Assignment3\\Test8")
 
 
 #end optimization execution
