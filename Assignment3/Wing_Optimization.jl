@@ -95,7 +95,7 @@ function Wing_smoother(xopt, deltax) #This function outputs a smoothed wing base
     for i = 1:length(xopt)
         chord_new[i] = A[1] + A[2]*x[i] + A[3]*x[i]^2
     end
-    return x, chord_new
+    return x, chord_new, A
 
 end
 
@@ -220,7 +220,7 @@ density = 1.007 #This is in kg/m3
 
 
 #setting bounds to pass into the function
-x0 = [7.0, 5.0, 4.0, 3.9, 3.8, 3.7, 3.6, 3.5, 3.4, 3.2, 3.1, 3.0]
+x0 = [5.0, 4.9, 4.8, 4.7, 4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4.0]
 
 lx = Array{Float64, 1}(undef, length(x0))
 ux = Array{Float64, 1}(undef, length(x0))
@@ -230,7 +230,7 @@ ug = Array{Float64, 1}(undef, length(x0) + 1)
 =#
 # ----- set some options ------
 ip_options = Dict(
-    "max_iter" => 25,
+    "max_iter" => 200,
     "tol" => 1e-6
 )
 solver = IPOPT(ip_options)
@@ -243,7 +243,7 @@ end
 
 ng = length(x0) #one extra constraint for lift, then a constraint for each chord length decreasing from the previous one
 lg = -Inf*ones(ng)
-ug = -0.000000001*ones(ng)
+ug = 0*ones(ng)
 
 #Here's where I exectue the optimization
 
@@ -251,11 +251,11 @@ ug = -0.000000001*ones(ng)
 xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
 leading_edge_distribution = leading_edge_finder(xopt)
-wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test8_BeforeSmoothing")
+wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test12_BeforeSmoothing")
 deltax = (4/(length(xopt) - 1))
-x, y = Wing_smoother(xopt, deltax)
+x, y, A = Wing_smoother(xopt, deltax)
 xnew = leading_edge_finder(y)
-wing_plotter(y, xnew, 8.0, "Assignment3\\Test8")
+wing_plotter(y, xnew, 8.0, "Assignment3\\Test12")
 
 
 #end optimization execution
