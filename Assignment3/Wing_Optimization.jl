@@ -99,6 +99,32 @@ function Wing_smoother(xopt, deltax) #This function outputs a smoothed wing base
 
 end
 
+#this function performs a finalized wing analysis given the smoothed wing
+function Finalized_Wing_Analysis(A, n)
+    #all that it needs for an input is the coefficients of the A Matrix and the number of panels you want
+    x = Array{Float64, 1}(undef, n + 1)
+    deltax = 4.0 / (n+1)
+    for i = 1:n + 1
+        if i < 2
+            x[i] = A[1] #Evaluating the polynomial at 0
+        else
+            x[i] = A[1] + (deltax*i)*A[2] + A[3]*(deltax*i)^2 #Evaluting the polynomial at x
+        end
+    end
+    leading_edge_distribution = Array{Float64, 1}(undef, length(x))
+    #this for loop keeps all the quarter chords aligned. One of my foced constraints
+    for i = 1:length(x)
+        if i < 2
+            leading_edge_distribution[i] = 0.0
+        else
+           leading_edge_distribution[i] = x[i - 1] - (x[i-1] - x[i])*0.25 #start at the previous chord position and add whatever the difference between the quarter chord lengths there is.
+        end
+    end
+    CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, x, 8.0)
+    lift_force = 0.5*1.007*wing_area*CFz
+    return CFz, CDiff, wing_area, lift_force
+end
+
 
 function fx!(g, x) #This is my test function for optimization
     #SNOW wants functions stated like equation 5.1 in the optimization textbook on page 154
@@ -220,7 +246,7 @@ density = 1.007 #This is in kg/m3
 
 
 #setting bounds to pass into the function
-x0 = [5.0, 4.9, 4.8, 4.7, 4.6, 4.5, 4.4, 4.3, 4.2, 4.1, 4.0]
+x0 = [6.9, 6.8, 6.75, 6.74, 6.73, 6.72, 6.71, 6.70, 6.69, 6.5]
 
 lx = Array{Float64, 1}(undef, length(x0))
 ux = Array{Float64, 1}(undef, length(x0))
@@ -230,7 +256,7 @@ ug = Array{Float64, 1}(undef, length(x0) + 1)
 =#
 # ----- set some options ------
 ip_options = Dict(
-    "max_iter" => 200,
+    "max_iter" => 300,
     "tol" => 1e-6
 )
 solver = IPOPT(ip_options)
@@ -251,11 +277,15 @@ ug = 0*ones(ng)
 xopt, fopt, info = minimize(Wing_Optimization!, x0, ng, lx, ux, lg, ug, options)
 println(xopt)
 leading_edge_distribution = leading_edge_finder(xopt)
-wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test12_BeforeSmoothing")
+wing_plotter(xopt, leading_edge_distribution, 8.0, "Assignment3\\Test15_BeforeSmoothing_100Iterations")
 deltax = (4/(length(xopt) - 1))
 x, y, A = Wing_smoother(xopt, deltax)
 xnew = leading_edge_finder(y)
-wing_plotter(y, xnew, 8.0, "Assignment3\\Test12")
+wing_plotter(y, xnew, 8.0, "Assignment3\\Test15_100Iterations")
+CFz, CDiff, wing_area, lift_force = Finalized_Wing_Analysis(A, 15)
+println("Smoothed Wing Numerics")
+println("Lift Force = $(lift_force)")
+println("CDiff = $(CDiff)")
 
 
 #end optimization execution
@@ -280,3 +310,15 @@ println("")
 #println(CFz)
 #println(wing_area)
 #println(surface)
+
+#=
+Interesting results
+
+No matter how I set my initial conditions, the optimizer always tries to bring the chord length to its max value at the point of 
+the wing connected to the fueslage. Test 12 illustrates this
+
+The more rectangular the initial conditions then the shape is more uniform in the center section like in Test 10. You
+get more of a parabolic shape
+
+
+=#
