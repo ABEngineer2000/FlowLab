@@ -57,8 +57,10 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     CDiff = far_field_drag(system) #compute farfield drag
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
+    Panel_Properties = get_surface_properties(system)
+    #write_vtk("FinalProject\\symmetric-planar-wing", surfaces, Panel_Properties; symmetric = true)
 
-    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area #, grid, surface these I added as outputs for troubleshooting
+    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
 end
 
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
@@ -74,6 +76,17 @@ end
 leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0]
 chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0]
 span = 10.0
-CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, chord_distribution, span)
+CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties = VLM(leading_edge_distribution, chord_distribution, span)
 
+#=
+This is to test some array things out
+alpha = Array{Float64, 3}(undef, 3, 4, 5)
+alpha[:, :, 1] .= 1.0 #use .= when assigning a single value to multiple places
+alpha[:, :, 2] .= 2.0
+alpha[:, :, 3] .= 3.0
+alpha[:, :, 4] .= 4.0
+alpha[:, :, 5] .= 5.0
+#println(alpha)
+=#
+#println(Panel_Properties)
 println("") #this is so I don't print anything I don't want.
