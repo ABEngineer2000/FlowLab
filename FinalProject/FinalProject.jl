@@ -38,7 +38,7 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     alpha = 5*pi/180 #set the angle of attack to 5 degrees
 
     Panels_span = length(xle)
-    Panels_chord = 10
+    Panels_chord = 2
     Spacing_type_span = Cosine()
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
@@ -49,7 +49,13 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
 
     #create the surface
     grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord; fc = fc, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
+    
+    #println(grid)
+    println()
+    #println(surface)
+
     surfaces = [surface]
+    #rcp = VortexLattice.controlpoint(surfaces)
 
     #perform steady state analysis
     system = steady_analysis(surfaces, ref, fs; symmetric = true)
@@ -57,10 +63,33 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     CDiff = far_field_drag(system) #compute farfield drag
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
-    Panel_Properties = get_surface_properties(system)
+
+    #testing getting the rcp values
+    #=
+    rcp1 = (system.surfaces[1])[2, 2].rcp
+    println(rcp1)
+    =#
+    #Panel_Properties = get_surface_properties(system)
     #write_vtk("FinalProject\\symmetric-planar-wing", surfaces, Panel_Properties; symmetric = true)
 
-    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
+    return surfaces, system #CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
+end
+
+function rcp_finder(surfaces, system, panels_span, panels_chord)
+    #this inputs the Vortexlattice.jl surfaces and system and outputs a 3d matrix with the coordinates to each of the control points. It also
+    #needs to know the number of panels spanwise and chordwise.
+    #output will look like [control_point1;;; controlpoint2;;; controlpoint3;;; .... controlpointn]
+    #rcp1 = (system.surfaces[1])[2, 2].rcp
+    #println(rcp1)
+    control_points = Array{Float64, 3}(undef, 1, 3, (panels_span*panels_chord))
+    n = 1 #this is added to index the control points
+    for i = 1:panels_span
+        for j = 1:panels_chord
+            control_points[1, :, n] = (system.surfaces[1])[i, j].rcp
+            n = n + 1
+        end
+    end
+    return control_points
 end
 
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
@@ -73,10 +102,12 @@ function mean(x)
     return m
 end
 
-leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0]
-chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0]
+leading_edge_distribution = [0.0, 0.0]
+chord_distribution = [5.0, 5.0]
 span = 10.0
-CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties = VLM(leading_edge_distribution, chord_distribution, span)
+surfaces, system = VLM(leading_edge_distribution, chord_distribution, span)
+control_points = rcp_finder(surfaces, system, 2, 2)
+println(control_points)
 
 #=
 This is to test some array things out
@@ -88,5 +119,6 @@ alpha[:, :, 4] .= 4.0
 alpha[:, :, 5] .= 5.0
 #println(alpha)
 =#
+
 #println(Panel_Properties)
 println("") #this is so I don't print anything I don't want.
