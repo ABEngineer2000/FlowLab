@@ -63,6 +63,8 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     CDiff = far_field_drag(system) #compute farfield drag
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
+    control_points = rcp_finder(surfaces, system, Panels_span, Panels_chord)
+    Gamma = (system.Γ)[:]
 
     #testing getting the rcp values
     #=
@@ -89,6 +91,11 @@ function rcp_finder(surfaces, system, panels_span, panels_chord)
             n = n + 1
         end
     end
+    #=
+    #this is a test
+    Γ1 = (system.Γ)[4]
+    println(Γ1)
+    =#
     return control_points
 end
 
@@ -106,8 +113,6 @@ leading_edge_distribution = [0.0, 0.0]
 chord_distribution = [5.0, 5.0]
 span = 10.0
 surfaces, system = VLM(leading_edge_distribution, chord_distribution, span)
-control_points = rcp_finder(surfaces, system, 2, 2)
-println(control_points)
 
 #=
 This is to test some array things out
