@@ -1,4 +1,4 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW
+using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW, StaticArrays
 
 #=
 The plan for this project is to be able to design an aircraft that is both statically and
@@ -35,10 +35,10 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     end
     fc = fill((xc) -> 0, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
-    alpha = 5*pi/180 #set the angle of attack to 5 degrees
+    alpha = 2*pi/180 #set the angle of attack to 5 degrees
 
     Panels_span = length(xle)
-    Panels_chord = 2
+    Panels_chord = 3
     Spacing_type_span = Cosine()
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
@@ -63,8 +63,9 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     CDiff = far_field_drag(system) #compute farfield drag
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
-    control_points = rcp_finder(surfaces, system, Panels_span, Panels_chord)
+    control_points_span = rcp_finder(surfaces, system, Panels_span, Panels_chord)
     Gamma = (system.Γ)[:]
+    V_induced = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
 
     #testing getting the rcp values
     #=
@@ -83,20 +84,27 @@ function rcp_finder(surfaces, system, panels_span, panels_chord)
     #output will look like [control_point1;;; controlpoint2;;; controlpoint3;;; .... controlpointn]
     #rcp1 = (system.surfaces[1])[2, 2].rcp
     #println(rcp1)
-    control_points = Array{Float64, 3}(undef, 1, 3, (panels_span*panels_chord))
+    control_points_span = Array{Float64, 3}(undef, 1, 3, panels_span)
     n = 1 #this is added to index the control points
+    #i goes along the span and j goes along the chord
     for i = 1:panels_span
-        for j = 1:panels_chord
-            control_points[1, :, n] = (system.surfaces[1])[i, j].rcp
+            control_points_span[1, :, n] = (system.surfaces[1])[1, i].rcp
             n = n + 1
-        end
     end
-    #=
-    #this is a test
-    Γ1 = (system.Γ)[4]
-    println(Γ1)
-    =#
-    return control_points
+    return control_points_span
+end
+
+function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
+    #this function finds the induced angle of attack for each panel based off of the control points and circulation (Γ values).
+    V_induced = Vector{SVector{3, Float64}}(undef, length(control_points_span[1, 1, :]))
+    α_i = Array{Float64, 1}(undef, length(control_points_span[1, 1, :]))
+    for i = 1:length(V_induced)
+        #println(control_points[1, :, i])
+        V_induced[i] = VortexLattice.induced_velocity(control_points_span[1, :, i], surfaces[1], Γ)
+        α_i[i] = atand((V_induced[i])[3]/Vinf)
+        println(α_i[i])
+    end
+    return V_induced
 end
 
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
@@ -109,8 +117,8 @@ function mean(x)
     return m
 end
 
-leading_edge_distribution = [0.0, 0.0]
-chord_distribution = [5.0, 5.0]
+leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
+chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
 span = 10.0
 surfaces, system = VLM(leading_edge_distribution, chord_distribution, span)
 
