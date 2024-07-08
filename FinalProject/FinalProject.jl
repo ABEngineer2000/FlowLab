@@ -107,6 +107,22 @@ function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
     return V_induced
 end
 
+#this function performs the wing analysis combining both the vortex lattice method for a finite wing and the vortex panel method for a 2d airfoil.
+function Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, AirfoilCSV) 
+#this function inputs the leading edge distribution, chord distribution, span, and a CSV containing corresponding lift and drag coefficients for the 2d airfoil
+
+#calculates the wing area per section - note that this is the projected area of the section
+
+
+#call VLM to get the induced angle of attack for each section
+
+#find the lift coefficient for each section based on the induced angle of attack
+
+#
+
+
+end
+
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
 function mean(x)
     sum = 0.0
@@ -120,18 +136,7 @@ end
 leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
 chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
 span = 10.0
-surfaces, system = VLM(leading_edge_distribution, chord_distribution, span)
-
-#=
-This is to test some array things out
-alpha = Array{Float64, 3}(undef, 3, 4, 5)
-alpha[:, :, 1] .= 1.0 #use .= when assigning a single value to multiple places
-alpha[:, :, 2] .= 2.0
-alpha[:, :, 3] .= 3.0
-alpha[:, :, 4] .= 4.0
-alpha[:, :, 5] .= 5.0
-#println(alpha)
-=#
+#surfaces, system = VLM(leading_edge_distribution, chord_distribution, span)
 
 #println(Panel_Properties)
 println("") #this is so I don't print anything I don't want.

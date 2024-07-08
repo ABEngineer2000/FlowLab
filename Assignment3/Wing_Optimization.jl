@@ -1,4 +1,4 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW
+using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, SNOW
 
 #Plan of Action
 #The induced drag from VLM will be the function I am optimizing.
