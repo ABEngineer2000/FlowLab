@@ -137,9 +137,23 @@ for i = 1:length(chord_distribution)
     cd_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 3]
     cm_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 4]
 end
-#Calculate the new lift/drag coefficient by adding all the lift/drag coefficients together and dividing by the all the wing section areas added together
-#output the new lift/drag coefficient
+#Calculate the new lift/drag/moment coefficient by taking a weighted average of each lift/drag/moment multiplied by their respective wing section area.
+cl_sum = 0.0
+cd_sum = 0.0
+cm_sum = 0.0
+wing_area = 0.0
+for i = 1:length(chord_distribution)
+    cl_sum = cl_sum + cl_section[i]*section_area[i]
+    cd_sum = cd_sum + cd_section[i]*section_area[i]
+    cm_sum = cm_sum + cm_section[i]*section_area[i]
+    wing_area = wing_area + section_area[i]
+end
+Cl = cl_sum / wing_area
+Cd = cd_sum / wing_area
+Cm = cm_sum / wing_area
 
+#output the new lift/drag coefficient
+    return Cl, Cd, Cm, wing_area
 end
 
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
@@ -156,6 +170,6 @@ leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
 chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
 span = 10.0
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv")
+Cl, Cd, Cm, wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv")
 
 println("Done") #this is so I don't print anything I don't want.
