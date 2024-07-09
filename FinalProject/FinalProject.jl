@@ -1,4 +1,4 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW, StaticArrays
+using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW, StaticArrays, FindClosest
 
 #=
 The plan for this project is to be able to design an aircraft that is both statically and
@@ -65,7 +65,7 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     CMx, CMy, CMz = CM
     control_points_span = rcp_finder(surfaces, system, Panels_span, Panels_chord)
     Gamma = (system.Γ)[:]
-    V_induced = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
+    V_induced, α_i = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
 
     #testing getting the rcp values
     #=
@@ -75,7 +75,7 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     #Panel_Properties = get_surface_properties(system)
     #write_vtk("FinalProject\\symmetric-planar-wing", surfaces, Panel_Properties; symmetric = true)
 
-    return surfaces, system #CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
+    return surfaces, system, α_i #CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
 end
 
 function rcp_finder(surfaces, system, panels_span, panels_chord)
@@ -102,9 +102,9 @@ function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
         #println(control_points[1, :, i])
         V_induced[i] = VortexLattice.induced_velocity(control_points_span[1, :, i], surfaces[1], Γ)
         α_i[i] = atand((V_induced[i])[3]/Vinf)
-        println(α_i[i])
+        #println(α_i[i])
     end
-    return V_induced
+    return V_induced, α_i
 end
 
 #this function performs the wing analysis combining both the vortex lattice method for a finite wing and the vortex panel method for a 2d airfoil.
@@ -112,14 +112,33 @@ function Improved_wing_analysis(leading_edge_distribution, chord_distribution, s
 #this function inputs the leading edge distribution, chord distribution, span, and a CSV containing corresponding lift and drag coefficients for the 2d airfoil
 
 #calculates the wing area per section - note that this is the projected area of the section
-
-
+section_area = Array{Float64, 1}(undef, length(chord_distribution))
+section_span = span / length(chord_distribution)
+for i = 1:length(section_area)
+    section_area[i] = chord_distribution[i]*section_span
+end
 #call VLM to get the induced angle of attack for each section
+surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 
 #find the lift coefficient for each section based on the induced angle of attack
+#read in airfoil data, the first column is the angle of attack, the header will give the corresponding values of the columns
+#this function assumes that the columns go as follows: alpha, c_l, c_d, c_m, and converged
+data_cells, header_cells = readdlm(AirfoilCSV, ',', Float64, '\n'; header=true)
+α = data_cells[:,1]
+cl_section = Array{Float64, 1}(undef, length(chord_distribution))
+cd_section = Array{Float64, 1}(undef, length(chord_distribution))
+cm_section = Array{Float64, 1}(undef, length(chord_distribution))
 
-#
+#this is an example line that would find the index of the closest value of α to 3.05
+#min = findmin(broadcast(abs, (α .- 3.05)))[2]
 
+for i = 1:length(chord_distribution)
+    cl_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 2]
+    cd_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 3]
+    cm_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 4]
+end
+#Calculate the new lift/drag coefficient by adding all the lift/drag coefficients together and dividing by the all the wing section areas added together
+#output the new lift/drag coefficient
 
 end
 
@@ -136,7 +155,7 @@ end
 leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
 chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
 span = 10.0
-#surfaces, system = VLM(leading_edge_distribution, chord_distribution, span)
+#surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
+Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv")
 
-#println(Panel_Properties)
-println("") #this is so I don't print anything I don't want.
+println("Done") #this is so I don't print anything I don't want.
