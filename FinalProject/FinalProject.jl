@@ -48,7 +48,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters 
 
     #create the surface
-    grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord; fc = fc, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
+    grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord; fc = fc, mirror = false, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
     
     #println(grid)
     #println(surface)
@@ -140,16 +140,16 @@ end
 cl_sum = 0.0
 cd_sum = 0.0
 cm_sum = 0.0
-wing_area = 0.0
+#wing_area = 0.0
 for i = 1:length(chord_distribution)
-    cl_sum = cl_sum + cl_section[i]*section_area[i]
-    cd_sum = cd_sum + cd_section[i]*section_area[i]
-    cm_sum = cm_sum + cm_section[i]*section_area[i]
-    wing_area = wing_area + section_area[i]
+    cl_sum = cl_sum + cl_section[i]*chord_distribution[i]
+    cd_sum = cd_sum + cd_section[i]*chord_distribution[i]
+    cm_sum = cm_sum + cm_section[i]*chord_distribution[i]
+    #wing_area = wing_area + section_area[i]
 end
-Cl = cl_sum / wing_area
-Cd = cd_sum / wing_area
-Cm = cm_sum / wing_area
+Cl = cl_sum / sum(chord_distribution)
+Cd = cd_sum / sum(chord_distribution)
+Cm = cm_sum / sum(chord_distribution)
 
 #output the new lift/drag coefficient
     return Cl, Cd, Cm, wing_area
@@ -169,6 +169,6 @@ leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
 chord_distribution = [0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375]
 span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Cl, Cd, Cm, wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2*pi / 180)
+Cl, Cd, Cm, wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 0.0)
 println(Cl)
 println("Done") #this is so I don't print anything I don't want.
