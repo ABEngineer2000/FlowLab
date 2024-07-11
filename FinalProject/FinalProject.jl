@@ -1,4 +1,4 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW, StaticArrays, FindClosest
+using Plots, Printf, LinearAlgebra, DelimitedFiles, VortexLattice, DelimitedFiles, SNOW, StaticArrays
 
 #=
 The plan for this project is to be able to design an aircraft that is both statically and
@@ -15,7 +15,7 @@ The wing will be made of a wing, horizontal, and vertical stabilizer.
 Design variables will be the chord lengths for the stabilizers.
 =#
 
-function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vortex lattice analysis
+function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
     yle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -26,20 +26,20 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     panel_area = Array{Float64, 1}(undef, length(chord_distribution))
     for i = 1:length(chord_distribution)
         xle[i] = leading_edge_distribution[i] #each leading edge is according to the input leading edge distribution vector 
-        yle[i] = (i - 1)*span/length(chord_distribution) #spanwise placement of the panels. Each planel is placed according to its top left corner
+        yle[i] = (i - 1)*span/(length(chord_distribution)*2) #spanwise placement of the panels. Each planel is placed according to its top left corner
         zle[i] = 0.0 #vertical direction, I will assume a flat wing so my z coordinate is 0.
-        chord[i] = chord_distribution[i] + 0.0 #first number is chord at the fueslage, the next is the chord at the wingtip.
+        chord[i] = chord_distribution[i] #first number is chord at the fueslage, the next is the chord at the wingtip.
         theta[i] = 0.0 #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
         phi[i] = 0.0 #This is rotation about the x-axis.
-        panel_area[i] = chord_distribution[i] * span/(length(chord_distribution) * 2) #outputs the area for each panel
+        panel_area[i] = chord_distribution[i] * span/(length(chord_distribution)*2) #outputs the area for each panel
     end
     fc = fill((xc) -> 0, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
-    alpha = 2*pi/180 #set the angle of attack to 5 degrees
+    alpha = α #set the angle of attack to 5 degrees
 
-    Panels_span = length(xle)
+    Panels_span = 3000
     Panels_chord = 3
-    Spacing_type_span = Cosine()
+    Spacing_type_span = Uniform()
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
     Vinf = 1.0
@@ -51,7 +51,6 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     grid, surface = wing_to_surface_panels(xle, yle, zle, chord, theta, phi, Panels_span, Panels_chord; fc = fc, spacing_s = Spacing_type_span, spacing_c = Spacing_type_chord)
     
     #println(grid)
-    println()
     #println(surface)
 
     surfaces = [surface]
@@ -108,7 +107,7 @@ function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
 end
 
 #this function performs the wing analysis combining both the vortex lattice method for a finite wing and the vortex panel method for a 2d airfoil.
-function Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, AirfoilCSV) 
+function Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, AirfoilCSV, α) 
 #this function inputs the leading edge distribution, chord distribution, span, and a CSV containing corresponding lift and drag coefficients for the 2d airfoil
 
 #calculates the wing area per section - note that this is the projected area of the section
@@ -118,7 +117,7 @@ for i = 1:length(section_area)
     section_area[i] = chord_distribution[i]*section_span
 end
 #call VLM to get the induced angle of attack for each section
-surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
+surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span, α)
 
 #find the lift coefficient for each section based on the induced angle of attack
 #read in airfoil data, the first column is the angle of attack, the header will give the corresponding values of the columns
@@ -167,9 +166,9 @@ function mean(x)
 end
 
 leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
-chord_distribution = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
-span = 10.0
+chord_distribution = [0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375]
+span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Cl, Cd, Cm, wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv")
-
+Cl, Cd, Cm, wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2*pi / 180)
+println(Cl)
 println("Done") #this is so I don't print anything I don't want.
