@@ -67,6 +67,6 @@ function WriteFile(CSVArray, filename, CSVHeader)
 end
 
 #probably need at least 300 iterations to get convergence
-Xfoil_Tabulation("FinalProject\\Airfoils\\NACA_6412.txt", "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 1000, 50, 300)
+Xfoil_Tabulation("FinalProject\\Airfoils\\NACA_6412.txt", "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 50000, 50, 300)
 println("Done")
 
