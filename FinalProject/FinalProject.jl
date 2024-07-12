@@ -126,19 +126,32 @@ function Tabulated_Data_Match(AirfoilCSV, α_i)
     cl_new = Array{Float64, 1}(undef, amount_converged)
     cd_new = Array{Float64, 1}(undef, amount_converged)
     cm_new = Array{Float64, 1}(undef, amount_converged)
+    j = 1 #new index I need to use for the following for loop
     #delete's all the non-converged data
     for i = 1:length(α)
         if converged[i] > 0.5
-            cl_new[i] = data_cells[i, 2]
+            α_new[j] = data_cells[i, 1]
+            cl_new[j] = data_cells[i, 2]
+            cd_new[j] = data_cells[i, 3]
+            cm_new[j] = data_cells[i, 4]
+            j = j + 1 #increment the new index
         else
-
+            #nothing happens
         end
+        #println(cl_new)
     end
+    cl = Array{Float64, 1}(undef, length(α_i))
+    cd = Array{Float64, 1}(undef, length(α_i))
+    cm = Array{Float64, 1}(undef, length(α_i))
+    
     #finds the closest value to the specified angle of attack
-    cl = data_cells[findmin(broadcast(abs, (α .- α_i)))[2], 2]
-    cd = data_cells[findmin(broadcast(abs, (α .- α_i)))[2], 3]
-    cm = data_cells[findmin(broadcast(abs, (α .- α_i)))[2], 4]
+    for i = 1:length(α_i)
+    cl[i] = cl_new[findmin(broadcast(abs, (α_new .- α_i[i])))[2]]
+    cd[i] = cd_new[findmin(broadcast(abs, (α_new .- α_i[i])))[2]]
+    cm[i] = cm_new[findmin(broadcast(abs, (α_new .- α_i[i])))[2]]
+    end
 
+    return cl, cd, cm
 end
 
 #this function performs the wing analysis combining both the vortex lattice method for a finite wing and the vortex panel method for a 2d airfoil.
@@ -206,5 +219,6 @@ span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2*pi/180)
 #println(CFz)
-Tabulated_Data_Match("FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2*pi/180)
+Cl, Cd, Cm = Tabulated_Data_Match("FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2)
+println(Cl)
 println("Done") #this is so I don't print anything I don't want.
