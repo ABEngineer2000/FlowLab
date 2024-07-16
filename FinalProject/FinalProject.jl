@@ -35,7 +35,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     end
     fc = fill((xc) -> 0, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
-    alpha = α #set the angle of attack to 5 degrees
+    alpha = α
 
     Panels_span = 3000
     Panels_chord = 3
@@ -99,7 +99,8 @@ function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
     α_i = Array{Float64, 1}(undef, length(control_points_span[1, 1, :]))
     for i = 1:length(V_induced)
         #println(control_points[1, :, i])
-        V_induced[i] = VortexLattice.induced_velocity(control_points_span[1, :, i], surfaces[1], Γ)
+        #V_induced[i] = VortexLattice.induced_velocity(control_points_span[1, :, i], surfaces[1], Γ; symmetric = true)
+        V_induced[i] = VortexLattice.induced_velocity(i, surfaces[1], Γ; symmetric = true)
         α_i[i] = atand((V_induced[i])[3]/Vinf)
         #println(α_i[i])
     end
@@ -145,6 +146,8 @@ function Tabulated_Data_Match(AirfoilCSV, α_i)
     cm = Array{Float64, 1}(undef, length(α_i))
     
     #finds the closest value to the specified angle of attack
+    #this is an example line that would find the index of the closest value of α to 3.05
+    #min = findmin(broadcast(abs, (α .- 3.05)))[2]
     for i = 1:length(α_i)
     cl[i] = cl_new[findmin(broadcast(abs, (α_new .- α_i[i])))[2]]
     cd[i] = cd_new[findmin(broadcast(abs, (α_new .- α_i[i])))[2]]
@@ -157,7 +160,7 @@ end
 #this function performs the wing analysis combining both the vortex lattice method for a finite wing and the vortex panel method for a 2d airfoil.
 function Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, AirfoilCSV, α) 
 #this function inputs the leading edge distribution, chord distribution, span, and a CSV containing corresponding lift and drag coefficients for the 2d airfoil
-
+#α is the angle of attack in radians
 #calculates the wing area per section - note that this is the projected area of the section
 section_area = Array{Float64, 1}(undef, length(chord_distribution))
 section_span = span / length(chord_distribution)
@@ -170,20 +173,14 @@ surfaces, system, α_i, CFz = VLM(leading_edge_distribution, chord_distribution,
 #find the lift coefficient for each section based on the induced angle of attack
 #read in airfoil data, the first column is the angle of attack, the header will give the corresponding values of the columns
 #this function assumes that the columns go as follows: alpha, c_l, c_d, c_m, and converged
-data_cells, header_cells = readdlm(AirfoilCSV, ',', Float64, '\n'; header=true)
-α = data_cells[:,1]
+
 cl_section = Array{Float64, 1}(undef, length(chord_distribution))
 cd_section = Array{Float64, 1}(undef, length(chord_distribution))
 cm_section = Array{Float64, 1}(undef, length(chord_distribution))
+α_new = α_i .* pi/180 .+ α
+α_new = α_new .* 180/pi
+cl_section, cd_section, cm_Section = Tabulated_Data_Match(AirfoilCSV, α_new)
 
-#this is an example line that would find the index of the closest value of α to 3.05
-#min = findmin(broadcast(abs, (α .- 3.05)))[2]
-
-for i = 1:length(chord_distribution)
-    cl_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 2]
-    cd_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 3]
-    cm_section[i] = data_cells[findmin(broadcast(abs, (α .- α_i[i])))[2], 4]
-end
 #Calculate the new lift/drag/moment coefficient by taking a weighted average of each lift/drag/moment multiplied by their respective wing section area.
 cl_sum = 0.0
 cd_sum = 0.0
@@ -195,12 +192,40 @@ for i = 1:length(chord_distribution)
     cm_sum = cm_sum + cm_section[i]*chord_distribution[i]
     wing_area = wing_area + section_area[i]
 end
-Cl = cl_sum / sum(chord_distribution)
-Cd = cd_sum / sum(chord_distribution)
-Cm = cm_sum / sum(chord_distribution)
+Cl = (cl_sum / sum(chord_distribution))*mean(chord_distribution) / wing_area
+Cd = (cd_sum / sum(chord_distribution))*mean(chord_distribution) / wing_area
+Cm = (cm_sum / sum(chord_distribution))*mean(chord_distribution) / wing_area
 
-#output the new lift/drag coefficient
+#output the new lift/drag coefficient that are based off the 3d definition
     return Cl, Cd, Cm, wing_area, CFz
+end
+
+#this function gathers a bunch of Cl data based on the range of angle of attack values specified
+function GatherData(leading_edge_distribution, chord_distrubtion, span, AirfoilCSV, α_range, α_resolution, save_file)
+    #all α values must be in radians
+    #α_range must be a 2 element array with the starting and ending α values
+    #creates all the α values that will be tested
+    delta_α = (α_range[2] - α_range[1]) / α_resolution
+    α = Array{Float64, 1}(undef, round(Integer, delta_α) + 1)
+    for i = 1:length(α)
+        if i < 2
+            α[i] = α_range[1]
+        else
+            α[i] = α[i - 1] + α_resolution
+        end
+    end
+    #Creates a Cl/Cd/Cm array to store all the Cl values
+    Cl = Array{Float64, 1}(undef, length(α))
+    Cd = Array{Float64, 1}(undef, length(α))
+    Cm = Array{Float64, 1}(undef, length(α))
+    wing_area = 0.0
+    #call Improved_wing_analysis to calculate the Cl values
+    for i = 1:length(α)
+        Cl[i], Cd[i], Cm[i], wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, AirfoilCSV, α[i])
+    end
+    #plot results in desired save file
+    Cl_plot = plot(α, Cl, label=false, xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+    savefig(Cl_plot, save_file)
 end
 
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
@@ -219,6 +244,7 @@ span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2*pi/180)
 #println(CFz)
-Cl, Cd, Cm = Tabulated_Data_Match("FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2)
-println(Cl)
+#println(Cl)
+#println(CFz)
+GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", [1.0 3.0], 1.0, "FinalProject\\Accuracy_Comparison\\Test1.png")
 println("Done") #this is so I don't print anything I don't want.
