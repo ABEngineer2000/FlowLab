@@ -201,7 +201,7 @@ Cm = (cm_sum / sum(chord_distribution))*mean(chord_distribution) / wing_area
 end
 
 #this function gathers a bunch of Cl data based on the range of angle of attack values specified
-function GatherData(leading_edge_distribution, chord_distrubtion, span, AirfoilCSV, α_range, α_resolution, save_file)
+function GatherData(leading_edge_distribution, chord_distrubtion, span, AirfoilCSV, ComparisonData, α_range, α_resolution, save_file, CSVName)
     #all α values must be in radians
     #α_range must be a 2 element array with the starting and ending α values
     #creates all the α values that will be tested
@@ -222,10 +222,35 @@ function GatherData(leading_edge_distribution, chord_distrubtion, span, AirfoilC
     #call Improved_wing_analysis to calculate the Cl values
     for i = 1:length(α)
         Cl[i], Cd[i], Cm[i], wing_area = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, AirfoilCSV, α[i])
+        println(α[i] * 180/pi)
     end
     #plot results in desired save file
-    Cl_plot = plot(α, Cl, label=false, xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+    Cl_plot = plot(α .* 180/pi, Cl, label=false, xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+    Cl_CSV = Array{Float64, 2}(undef, length(α), 2)
+    Cl_CSV[:, 1] = α .* 180/pi
+    Cl_CSV[:, 2] = Cl
+    open("$(CSVName).csv", "w") do io
+        writedlm(io, Cl_CSV, ',')
+    end
     savefig(Cl_plot, save_file)
+end
+#I'm just writing this function to plot the experimental data I got with the studies that I found
+function PlotComparison(CSV1, CSV2, CSVLabels, filename)
+    #Inputs both CSV files and then plots the subsequent results on top of each other
+    #this assumes α is in degrees
+    #pulls information from CSV files, assuming column 1 is α and column 2 is Cl
+    Array1 = readdlm(CSV1, ',')
+    Array2 = readdlm(CSV2, ',')
+    α1 = Array1[:, 1]
+    Cl1 = Array1[:, 2]
+    α2 = Array2[:, 1]
+    Cl2 = Array2[:, 2]
+    #resets plot
+    plot()
+    plot1 = plot(α1, Cl1, label = CSVLabels[1], xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+    plot1 = plot!(α2, Cl2, label = CSVLabels[2], xlabel="Angle of Attack (degrees)", ylabel="Lift Coefficient")
+    #save file based on the specified filename
+    savefig(plot1, filename)   
 end
 
 #I didn't want to download another julia package so I just created my own fucntion to find the mean
@@ -246,5 +271,6 @@ span = 0.595
 #println(CFz)
 #println(Cl)
 #println(CFz)
-GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", [1.0 3.0], 1.0, "FinalProject\\Accuracy_Comparison\\Test1.png")
+#GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", ComparisonData, [-6.0*pi/180 15.0*pi/180], 1*pi/180, "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.png", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata")
+#PlotComparison("FinalProject\\Accuracy_Comparison\\ComparitiveStudyFigure23.csv", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.csv", ["Krishnan et al Data", "Improved Wing Analysis Data"], "FinalProject\\Accuracy_Comparison\\ComparisonStudy_vs_ImprovedWingAnalysis.png")
 println("Done") #this is so I don't print anything I don't want.
