@@ -268,10 +268,11 @@ function mean(x)
 end
 
 leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
-chord_distribution = [0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375, 0.2375]
+chord_distribution = Array{Float64, 1}(undef, 10)
+chord_distribution[:] .= 0.190
 span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 0*pi/180)
+Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
 println(CFz)
 println(Cl)
 #GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", ComparisonData, [-6.0*pi/180 15.0*pi/180], 1*pi/180, "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.png", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata")
