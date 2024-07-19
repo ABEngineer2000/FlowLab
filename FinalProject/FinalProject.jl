@@ -35,7 +35,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     end
     M = 0.06
     p = 0.4
-    fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : xc >= p ? (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) : xc = 0.0 end, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
+    fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
     alpha = α
 
@@ -105,7 +105,7 @@ function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
         #println(control_points[1, :, i])
         V_induced[i] = VortexLattice.induced_velocity(control_points_span[1, :, i], surfaces[1], Γ; symmetric = true)
         #V_induced[i] = VortexLattice.induced_velocity(i, surfaces[1], Γ; symmetric = true)
-        α_i[i] = atand((V_induced[i])[3]/Vinf)
+        α_i[i] = atan((V_induced[i])[3]/Vinf)
         #println(α_i[i])
     end
     return V_induced, α_i
@@ -181,7 +181,7 @@ surfaces, system, α_i, CFz = VLM(leading_edge_distribution, chord_distribution,
 cl_section = Array{Float64, 1}(undef, length(chord_distribution))
 cd_section = Array{Float64, 1}(undef, length(chord_distribution))
 cm_section = Array{Float64, 1}(undef, length(chord_distribution))
-α_new = α_i .* pi/180 .+ α
+α_new = α_i .+ α
 α_new = α_new .* 180/pi
 cl_section, cd_section, cm_Section = Tabulated_Data_Match(AirfoilCSV, α_new)
 
@@ -272,7 +272,7 @@ chord_distribution = Array{Float64, 1}(undef, 10)
 chord_distribution[:] .= 0.190
 span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
+Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 0.0*pi/180)
 println(CFz)
 println(Cl)
 #GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", ComparisonData, [-6.0*pi/180 15.0*pi/180], 1*pi/180, "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.png", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata")
