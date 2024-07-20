@@ -46,7 +46,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
     Vinf = 1.0
-    wing_area = sum(panel_area)*2 #this gives wing area for lift calculations that I will use in the optimization
+    wing_area = 0.11305#sum(panel_area)*2 #this gives wing area for lift calculations that I will use in the optimization
     ref = Reference(wing_area, mean(chord_distribution), span, Rref, Vinf)
     fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters 
 
@@ -267,24 +267,23 @@ function mean(x)
     return m
 end
 
-leading_edge_distribution = [0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.0, 0.0, 0.0, 0.0]
-chord_distribution = Array{Float64, 1}(undef, 10)
-chord_distribution[:] .= 0.190
+leading_edge_distribution = Array{Float64, 1}(undef, 50)
+chord_distribution = Array{Float64, 1}(undef, 50)
+leading_edge_distribution[:] .= 0.0
+chord_distribution[:] .= 0.190 + 0.0475
 span = 0.595
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 0.0*pi/180)
+Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
 println(CFz)
 println(Cl)
 #GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", ComparisonData, [-6.0*pi/180 15.0*pi/180], 1*pi/180, "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.png", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata")
 #PlotComparison("FinalProject\\Accuracy_Comparison\\ComparitiveStudyFigure23.csv", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.csv", ["Krishnan et al Data", "Improved Wing Analysis Data"], "FinalProject\\Accuracy_Comparison\\ComparisonStudy_vs_ImprovedWingAnalysis.png")
-
-#this is a piecewise example that uses the ternary operator. ? means then and : means else
+p = 0.4
+M = 0.06
+#this is to test my camber line function
 #=
-fx = x -> begin
-    x < 3 ? x^2 :
-    x >= 3 ? x^3 :
-    x = 0.0
-end
+fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution))
+println(fc[1](1.0))
 =#
 
 println("Done") #this is so I don't print anything I don't want.
