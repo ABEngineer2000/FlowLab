@@ -61,12 +61,15 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
 
     #perform steady state analysis
     system = steady_analysis(surfaces, ref, fs; symmetric = true)
+    dCF, dCM = stability_derivatives(system)
+    println(dCF)
     CF, CM = body_forces(system; frame=Wind()) #compute near body forces
     CDiff = far_field_drag(system) #compute farfield drag
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
     control_points_span = rcp_finder(surfaces, system, Panels_span, Panels_chord)
     Gamma = (system.Γ)[:]
+    println(length(Gamma))
     V_induced, α_i = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
 
     #testing getting the rcp values
@@ -77,7 +80,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     #Panel_Properties = get_surface_properties(system)
     #write_vtk("FinalProject\\symmetric-planar-wing", surfaces, Panel_Properties; symmetric = true)
 
-    return surfaces, system, α_i, CFz #, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
+    return surfaces, system, α_i, CFz, dCF, dCM #, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
 end
 
 function rcp_finder(surfaces, system, panels_span, panels_chord)
@@ -91,7 +94,7 @@ function rcp_finder(surfaces, system, panels_span, panels_chord)
     #i goes along the span and j goes along the chord
     #option to take control points at chorter chord using this code in finding contro_points_span; round(Integer, panels_chord*0.25)
     for i = 1:panels_span
-            control_points_span[1, :, n] = (system.surfaces[1])[round(Integer, panels_chord*0.25), i].rcp
+            control_points_span[1, :, n] = (system.surfaces[1])[round(Integer, panels_chord*0.40), i].rcp
             n = n + 1
     end
     return control_points_span
@@ -105,8 +108,9 @@ function Induced_AOA(control_points_span, surfaces, Γ, Vinf)
         #println(control_points[1, :, i])
         V_induced[i] = VortexLattice.induced_velocity(control_points_span[1, :, i], surfaces[1], Γ; symmetric = true)
         #V_induced[i] = VortexLattice.induced_velocity(i, surfaces[1], Γ; symmetric = true)
-        α_i[i] = atan((V_induced[i])[3]/Vinf)
-        #println(α_i[i])
+        α_i[i] = atan((V_induced[i])[3]/(Vinf))
+        #println(V_induced[i][3])
+        #println(α_i[i] * 180/pi + 2.0)
     end
     return V_induced, α_i
 end
@@ -265,6 +269,16 @@ function mean(x)
     end
     m = sum/length(x)
     return m
+end
+
+function stability_analysis()
+    
+end
+
+
+#perform a stability optimization for pitch stability
+function stability_optim()
+
 end
 
 leading_edge_distribution = Array{Float64, 1}(undef, 50)
