@@ -15,7 +15,7 @@ The wing will be made of a wing, horizontal, and vertical stabilizer.
 Design variables will be the chord lengths for the stabilizers.
 =#
 
-function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs a Vortex lattice analysis
+function VLM(leading_edge_distribution, chord_distribution, span, α, HS_distribution, HS_chord_distribution, HS_span, HS_location) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
     yle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -33,6 +33,35 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
         phi[i] = 0.0 #This is rotation about the x-axis.
         panel_area[i] = chord_distribution[i] * span/(length(chord_distribution)*2) #outputs the area for each panel
     end
+
+    #perform horizontal stabilizer analysis
+    xle_h = Array{Float64, 1}(undef, length(HS_distribution))
+    yle_h = Array{Float64, 1}(undef, length(HS_distribution))
+    zle_h = Array{Float64, 1}(undef, length(HS_distribution))
+    theta_h = Array{Float64, 1}(undef, length(HS_distribution))
+    phi_h = Array{Float64, 1}(undef, length(HS_distribution))
+    tail_section_area = Array{Float64, 1}(undef, length(HS_distribution))
+    for i = 1:length(xle_h)
+        xle_h[i] = HS_distribution[i]
+        yle_h[i] = (i - 1)*HS_span/(length(HS_distribution)*2)
+        zle_h[i] = 0.0
+        tail_section_area[i] = HS_chord_distribution[i] * HS_span/(length(HS_chord_distribution)*2)
+    end
+    theta_h[:] .= 0.0
+    phi_h[:] .= 0.0
+    fc_h = fill((xc) -> 0, length(HS_distribution)) #camberline function for each section
+    ns_h = length(HS_distribution)
+    nc_h = length(HS_distribution)
+    spacing_s_h = Uniform()
+    spacing_c_h = Uniform()
+    mirror_h = false
+    # generate surface panels for horizontal tail
+    hgrid, htail = wing_to_surface_panels(xle_h, yle_h, zle_h, HS_chord_distribution, theta_h, phi_h, ns_h, nc_h;
+    mirror=mirror_h, fc=fc_h, spacing_s=spacing_s_h, spacing_c=spacing_c_h)
+    VortexLattice.translate!(hgrid, [HS_location, 0.0, 0.0])
+    VortexLattice.translate!(htail, [HS_location, 0.0, 0.0])
+    tail_area = sum(tail_section_area)
+
     M = 0.06
     p = 0.4
     fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
@@ -41,13 +70,12 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
 
     Panels_span = 50
     Panels_chord = 50
-    println(Panels_span*Panels_chord)
     Spacing_type_span = Uniform()
     Spacing_type_chord = Uniform()
     Rref = [0.0,0.0,0.0]
     Vinf = 1.0
-    wing_area = 0.11305#sum(panel_area)*2 #this gives wing area for lift calculations that I will use in the optimization
-    ref = Reference(wing_area, mean(chord_distribution), span, Rref, Vinf)
+    wing_area = sum(panel_area)*2 #0.11305 #this gives wing area for lift calculations that I will use in the optimization
+    ref = Reference(wing_area + tail_area, mean(chord_distribution), span, Rref, Vinf)
     fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters 
 
     #create the surface
@@ -55,14 +83,16 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     
     #println(grid)
     #println(surface)
-
-    surfaces = [surface]
+    grids = [grid, hgrid]
+    surfaces = [surface, htail]
+    surface1 = [surface]
     #rcp = VortexLattice.controlpoint(surfaces)
 
     #perform steady state analysis
     system = steady_analysis(surfaces, ref, fs; symmetric = true)
     dCF, dCM = stability_derivatives(system)
-    println(dCF)
+    dCFz = dCF[1][1]
+    dCMy = dCM[1][2]
     CF, CM = body_forces(system; frame=Wind()) #compute near body forces
     CDiff = far_field_drag(system) #compute farfield drag
     CFx, CFy, CFz = CF
@@ -70,7 +100,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     control_points_span = rcp_finder(surfaces, system, Panels_span, Panels_chord)
     Gamma = (system.Γ)[:]
     println(length(Gamma))
-    V_induced, α_i = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
+    V_induced, α_i = Induced_AOA(control_points_span, surface1, Gamma, Vinf)
 
     #testing getting the rcp values
     #=
@@ -80,7 +110,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
     #Panel_Properties = get_surface_properties(system)
     #write_vtk("FinalProject\\symmetric-planar-wing", surfaces, Panel_Properties; symmetric = true)
 
-    return surfaces, system, α_i, CFz, dCF, dCM #, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
+    return surfaces, system, α_i, CFz, CMy, dCFz, dCMy #, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
 end
 
 function rcp_finder(surfaces, system, panels_span, panels_chord)
@@ -176,7 +206,7 @@ for i = 1:length(section_area)
     section_area[i] = chord_distribution[i]*section_span
 end
 #call VLM to get the induced angle of attack for each section
-surfaces, system, α_i, CFz = VLM(leading_edge_distribution, chord_distribution, span, α)
+surfaces, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, α)
 
 #find the lift coefficient for each section based on the induced angle of attack
 #read in airfoil data, the first column is the angle of attack, the header will give the corresponding values of the columns
@@ -205,7 +235,7 @@ Cd = (cd_sum / sum(chord_distribution))*mean(chord_distribution) / wing_area
 Cm = (cm_sum / sum(chord_distribution))*mean(chord_distribution) / wing_area
 
 #output the new lift/drag coefficient that are based off the 3d definition
-    return Cl, Cd, Cm, wing_area, CFz
+    return Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy
 end
 
 #this function gathers a bunch of Cl data based on the range of angle of attack values specified
@@ -271,8 +301,13 @@ function mean(x)
     return m
 end
 
-function stability_analysis()
-    
+function pitch_stability_analysis(dCFz, dCMy, x,CL, CMy)
+    #inputs the dCF, dCM, and the distance (x/c) or the distance from the center of gravity to the mean aerodynamic center (quarter chord)
+    #inputs the Cmac or moment coefficient about the aerodynamic center as well as the coefficient of lift to compute trim stability
+    #the equations for stability are on pages 91-92 in the flight vehicle design textbook
+    dCmg = -x*dCFz + dCMy #compute the static stability
+    Cmg = CMy - (x*CL)
+    return dCmg, Cmg
 end
 
 
@@ -286,10 +321,19 @@ chord_distribution = Array{Float64, 1}(undef, 50)
 leading_edge_distribution[:] .= 0.0
 chord_distribution[:] .= 0.190 + 0.0475
 span = 0.595
+HS_distribution = Array{Float64, 1}(undef, 20)
+HS_chord_distribution = Array{Float64, 1}(undef, 20)
+HS_distribution[:] .= 0.0
+HS_chord_distribution[:] .= 0.05
+HS_span = 0.300
+HS_location = 0.15
+println(typeof(HS_span))
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
-Cl, Cd, Cm, wing_area, CFz = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
+#Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
+surface, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, 2.0*pi/180, HS_distribution, HS_chord_distribution, HS_span, HS_location)
 println(CFz)
-println(Cl)
+#println(Cl)
+#println(CMy)
 #GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", ComparisonData, [-6.0*pi/180 15.0*pi/180], 1*pi/180, "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.png", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata")
 #PlotComparison("FinalProject\\Accuracy_Comparison\\ComparitiveStudyFigure23.csv", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.csv", ["Krishnan et al Data", "Improved Wing Analysis Data"], "FinalProject\\Accuracy_Comparison\\ComparisonStudy_vs_ImprovedWingAnalysis.png")
 p = 0.4
@@ -299,5 +343,7 @@ M = 0.06
 fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution))
 println(fc[1](1.0))
 =#
-
+static_stability, trim_stability = pitch_stability_analysis(dCFz, dCMy, 0.2, CFz, CMy)
+println(static_stability)
+println(trim_stability)
 println("Done") #this is so I don't print anything I don't want.
