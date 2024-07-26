@@ -15,7 +15,7 @@ The wing will be made of a wing, horizontal, and vertical stabilizer.
 Design variables will be the chord lengths for the stabilizers.
 =#
 
-function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs a Vortex lattice analysis
+function VLM(leading_edge_distribution, chord_distribution, span, α, camber_line_function) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
     yle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -36,7 +36,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs 
 
     M = 0.06
     p = 0.4
-    fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
+    fc = fill( camber_line_function, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
     beta = 0.0
     alpha = α
 
@@ -299,9 +299,10 @@ HS_chord_distribution[:] .= 0.05
 HS_span = 0.300
 HS_location = 2.7
 println(typeof(HS_span))
+camber_line_function = xc -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end  
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
-surface, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, 2.0*pi/180)
+surface, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, 2.0*pi/180, camber_line_function)
 println(CFz)
 #println(Cl)
 #println(CMy)
@@ -314,7 +315,7 @@ M = 0.06
 fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution))
 println(fc[1](1.0))
 =#
-static_stability, trim_stability = pitch_stability_analysis(dCFz, dCMy, 0.2, CFz, CMy)
+#static_stability, trim_stability = pitch_stability_analysis(dCFz, dCMy, 0.2, CFz, CMy)
 println(static_stability)
 println(trim_stability)
 println("Done") #this is so I don't print anything I don't want.
