@@ -15,7 +15,7 @@ The wing will be made of a wing, horizontal, and vertical stabilizer.
 Design variables will be the chord lengths for the stabilizers.
 =#
 
-function VLM(leading_edge_distribution, chord_distribution, span, α, camber_line_function, S) #Performs a Vortex lattice analysis
+function VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, α, camber_line_function, S) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
     yle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -29,7 +29,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α, camber_lin
         yle[i] = (i - 1)*span/(length(chord_distribution)*2) #spanwise placement of the panels. Each planel is placed according to its top left corner
         zle[i] = 0.0 #vertical direction, I will assume a flat wing so my z coordinate is 0.
         chord[i] = chord_distribution[i] #first number is chord at the fueslage, the next is the chord at the wingtip.
-        theta[i] = 0.0 #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
+        theta[i] = twist_distribution[i] #this is twist (rotation about y-axis) at the fueslage and wingtip respectively.
         phi[i] = 0.0 #This is rotation about the x-axis.
         panel_area[i] = chord_distribution[i] * span/(length(chord_distribution)*2) #outputs the area for each panel
     end
@@ -68,7 +68,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α, camber_lin
     CMx, CMy, CMz = CM
     control_points_span = rcp_finder(surfaces, system, Panels_span, Panels_chord)
     Gamma = (system.Γ)[:]
-    println(length(Gamma))
+    #println(length(Gamma))
     V_induced, α_i = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
 
     #testing getting the rcp values
@@ -274,6 +274,7 @@ function pitch_stability_analysis(dCFz_wing, dCMy_wing, x_wing,CL_wing, CMy_wing
     #inputs the dCF, dCM, and the distance (x/c) or the distance from the center of gravity to the mean aerodynamic center (quarter chord)
     #inputs the Cmac or moment coefficient about the aerodynamic center as well as the coefficient of lift to compute trim stability
     #the equations for stability are on pages 91-92 in the flight vehicle design textbook
+    #also note that the tail_volume_coefficient is divided by x_tail because I multiply it in later again
     dCmg = -x_wing*dCFz_wing + dCMy_wing -x_tail*dCFz_tail + dCMy_tail #compute the static stability
     Cmg = CMy_wing + CMy_tail*tail_efficiency*tail_volume_coefficient - (x_wing*CL_wing) - (x_tail*CL_tail)*tail_efficiency*tail_volume_coefficient
     return dCmg, Cmg
@@ -281,30 +282,41 @@ end
 
 
 #perform a stability optimization for pitch stability
-function stability_optim()
+function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, tail_distance_initial, wing_distance_initial,
+    wing_density, tail_density, aircraft_weight)
+    #variables that the otpimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
+    #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight
+    
 
 end
 
 leading_edge_distribution = Array{Float64, 1}(undef, 50)
 chord_distribution = Array{Float64, 1}(undef, 50)
+twist_distribution = Array{Float64, 1}(undef, 50)
 leading_edge_distribution[:] .= 0.0
 chord_distribution[:] .= 0.190 + 0.0475
+twist_distribution[:] .= 0.0
 span = 0.595
 HS_distribution = Array{Float64, 1}(undef, 20)
 HS_chord_distribution = Array{Float64, 1}(undef, 20)
+HS_twist_distribution = Array{Float64, 1}(undef, 20)
+HS_twist_distribution .= 0.0
 HS_distribution[:] .= 0.0
-HS_chord_distribution[:] .= 0.05
-HS_span = 0.300
+HS_chord_distribution[:] .= 0.00001
+HS_span = 0.0001
 HS_location = 2.7
-println(typeof(HS_span))
 M = 0.06
 p = 0.4
 camber_line_function = xc -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end  
+camber_line_function_tail = xc -> 0.0
 wing_area = 0.11305
+tail_area = HS_span*mean(HS_chord_distribution)
+tail_volume_coefficient = tail_area / (wing_area*0.19)
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
-surface, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, 2.0*pi/180, camber_line_function, wing_area)
-println(CFz)
+surface, system, α_i, CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, 2.0*pi/180, camber_line_function, wing_area)
+surface, system, α_i, CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(HS_distribution, HS_chord_distribution, HS_twist_distribution, HS_span, 2.0*pi/180, camber_line_function_tail, tail_area)
+#println(CFz_wing)
 #println(Cl)
 #println(CMy)
 #GatherData(leading_edge_distribution, chord_distribution, span,"FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", ComparisonData, [-6.0*pi/180 15.0*pi/180], 1*pi/180, "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata.png", "FinalProject\\Accuracy_Comparison\\ComparitiveStudy_Comparisondata")
@@ -314,9 +326,9 @@ println(CFz)
 fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution))
 println(fc[1](1.0))
 =#
-#=
-static_stability, trim_stability = pitch_stability_analysis(dCFz, dCMy, 0.2, CFz, CMy)
+
+static_stability, trim_stability = pitch_stability_analysis(dCFz, dCMy, -0.8, CFz, CMy, dCFz_tail, dCMy_tail, 0.15, CFz_tail, CMy_tail, 0.90, tail_volume_coefficient)
 println(static_stability)
 println(trim_stability)
-=#
+
 println("Done") #this is so I don't print anything I don't want.
