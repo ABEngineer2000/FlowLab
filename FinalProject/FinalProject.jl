@@ -15,7 +15,7 @@ The wing will be made of a wing, horizontal, and vertical stabilizer.
 Design variables will be the chord lengths for the stabilizers.
 =#
 
-function VLM(leading_edge_distribution, chord_distribution, span, α, HS_distribution, HS_chord_distribution, HS_span, HS_location) #Performs a Vortex lattice analysis
+function VLM(leading_edge_distribution, chord_distribution, span, α) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
     yle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -34,34 +34,6 @@ function VLM(leading_edge_distribution, chord_distribution, span, α, HS_distrib
         panel_area[i] = chord_distribution[i] * span/(length(chord_distribution)*2) #outputs the area for each panel
     end
 
-    #perform horizontal stabilizer analysis
-    xle_h = Array{Float64, 1}(undef, length(HS_distribution))
-    yle_h = Array{Float64, 1}(undef, length(HS_distribution))
-    zle_h = Array{Float64, 1}(undef, length(HS_distribution))
-    theta_h = Array{Float64, 1}(undef, length(HS_distribution))
-    phi_h = Array{Float64, 1}(undef, length(HS_distribution))
-    tail_section_area = Array{Float64, 1}(undef, length(HS_distribution))
-    for i = 1:length(xle_h)
-        xle_h[i] = HS_distribution[i]
-        yle_h[i] = (i - 1)*HS_span/(length(HS_distribution)*2)
-        zle_h[i] = 0.0
-        tail_section_area[i] = HS_chord_distribution[i] * HS_span/(length(HS_chord_distribution)*2)
-    end
-    theta_h[:] .= 0.0
-    phi_h[:] .= 0.0
-    fc_h = fill((xc) -> 0, length(HS_distribution)) #camberline function for each section
-    ns_h = length(HS_distribution)
-    nc_h = length(HS_distribution)
-    spacing_s_h = Uniform()
-    spacing_c_h = Uniform()
-    mirror_h = false
-    # generate surface panels for horizontal tail
-    hgrid, htail = wing_to_surface_panels(xle_h, yle_h, zle_h, HS_chord_distribution, theta_h, phi_h, ns_h, nc_h;
-    mirror=mirror_h, fc=fc_h, spacing_s=spacing_s_h, spacing_c=spacing_c_h)
-    VortexLattice.translate!(hgrid, [HS_location, 0.0, 0.0])
-    VortexLattice.translate!(htail, [HS_location, 0.0, 0.0])
-    tail_area = sum(tail_section_area)
-
     M = 0.06
     p = 0.4
     fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution)) # camberline function for each section, it creates a camber in the z direction. make the function in terms of xc
@@ -75,7 +47,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α, HS_distrib
     Rref = [0.0,0.0,0.0]
     Vinf = 1.0
     wing_area = sum(panel_area)*2 #0.11305 #this gives wing area for lift calculations that I will use in the optimization
-    ref = Reference(wing_area + tail_area, mean(chord_distribution), span, Rref, Vinf)
+    ref = Reference(wing_area, mean(chord_distribution), span, Rref, Vinf)
     fs = Freestream(Vinf, alpha, beta, [0.0;0.0;0.0]) #Define freestream Parameters 
 
     #create the surface
@@ -83,9 +55,8 @@ function VLM(leading_edge_distribution, chord_distribution, span, α, HS_distrib
     
     #println(grid)
     #println(surface)
-    grids = [grid, hgrid]
-    surfaces = [surface, htail]
-    surface1 = [surface]
+    grids = [grid]
+    surfaces = [surface]
     #rcp = VortexLattice.controlpoint(surfaces)
 
     #perform steady state analysis
@@ -100,7 +71,7 @@ function VLM(leading_edge_distribution, chord_distribution, span, α, HS_distrib
     control_points_span = rcp_finder(surfaces, system, Panels_span, Panels_chord)
     Gamma = (system.Γ)[:]
     println(length(Gamma))
-    V_induced, α_i = Induced_AOA(control_points_span, surface1, Gamma, Vinf)
+    V_induced, α_i = Induced_AOA(control_points_span, surfaces, Gamma, Vinf)
 
     #testing getting the rcp values
     #=
@@ -301,12 +272,12 @@ function mean(x)
     return m
 end
 
-function pitch_stability_analysis(dCFz, dCMy, x,CL, CMy)
+function pitch_stability_analysis(dCFz_wing, dCMy_wing, x_wing,CL_wing, CMy_wing, dCFz_tail, dCMy_tail, x_tail,CL_tail, CMy_tail, tail_efficiency, tail_volume_coefficient)
     #inputs the dCF, dCM, and the distance (x/c) or the distance from the center of gravity to the mean aerodynamic center (quarter chord)
     #inputs the Cmac or moment coefficient about the aerodynamic center as well as the coefficient of lift to compute trim stability
     #the equations for stability are on pages 91-92 in the flight vehicle design textbook
-    dCmg = -x*dCFz + dCMy #compute the static stability
-    Cmg = CMy - (x*CL)
+    dCmg = -x_wing*dCFz_wing + dCMy_wing -x_tail*dCFz_tail + dCMy_tail #compute the static stability
+    Cmg = CMy_wing + CMy_tail*tail_efficiency*tail_volume_coefficient - (x_wing*CL_wing) - (x_tail*CL_tail)*tail_efficiency*tail_volume_coefficient
     return dCmg, Cmg
 end
 
@@ -326,11 +297,11 @@ HS_chord_distribution = Array{Float64, 1}(undef, 20)
 HS_distribution[:] .= 0.0
 HS_chord_distribution[:] .= 0.05
 HS_span = 0.300
-HS_location = 0.15
+HS_location = 2.7
 println(typeof(HS_span))
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
-surface, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, 2.0*pi/180, HS_distribution, HS_chord_distribution, HS_span, HS_location)
+surface, system, α_i, CFz, CMy, dCFz, dCMy = VLM(leading_edge_distribution, chord_distribution, span, 2.0*pi/180)
 println(CFz)
 #println(Cl)
 #println(CMy)
