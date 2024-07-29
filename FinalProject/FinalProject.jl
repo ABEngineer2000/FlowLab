@@ -15,6 +15,21 @@ The wing will be made of a wing, horizontal, and vertical stabilizer.
 Design variables will be the chord lengths for the stabilizers.
 =#
 
+#doc string example
+
+"""
+    function call ie VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, α, camber_line_function, S)
+
+Function definition
+
+**Arguments**
+- `leading_edge_distribution::type`: A vector of leading edge values for each chord section
+
+**Returns**
+- `urfaces::type`: the surfaces output
+- `system::type`: the system output
+"""
+
 function VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, α, camber_line_function, S) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -283,12 +298,49 @@ end
 
 #perform a stability optimization for pitch stability
 function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, tail_distance_initial, wing_distance_initial,
-    wing_density, tail_density, aircraft_weight)
+    wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint)
     #variables that the otpimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
-    #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight
-    
+    #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, air_density, lift_constraint, leading_edge_constraint
+    #create constraint array
+    g = Array{Float64, 1}(undef, length(lift_constraint) + length(leading_edge_constraint) + length(static_stability_constraint))
+    for i = 1:length(g)
+        if i < length(lift_constraint) + 1
+            g[i] = lift_constraint[i]
+        elseif i > length(lift_constraint) && i < length(lift_constraint) + length(leading_edge_constraint) + 1
+            g[i] = leading_edge_constraint[i - length(lift_constraint)]
+        else
+            g[i] = static_stability_constraint[i - length(lift_constraint) - length(leading_edge_constraint)]
+        end
+    end
+    #create x (variable that the optimizer will change) array
+    x0 = Array{Float64, 1}(undef, length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial))
+    for i = 1:length(x0)
+        if i < length(wing_chord_initial) + 1
+            x0[i] = wing_chord_initial[i]
+        elseif i > length(wing_chord_initial) && i < length(wingspan_initial) + length(wing_chord_initial) + 1
+            x0[i] = wingspan_initial[i - (length(wing_chord_initial))]
+        elseif i > length(wingspan_initial) + length(wing_chord_initial) && i < length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + 1
+            x0[i] = tail_chord_initial[i - (length(wingspan_initial) + length(wing_chord_initial))]
+        elseif i > length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) && i < length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + 1
+            x0[i] = tail_span_initial[i - (length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial))]
+        elseif i > length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) && i < length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + 1
+            x0[i] = twist_initial[i - (length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial))]
+        elseif i > length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) && i < length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + 1
+            x0[i] = tail_distance_initial[i - (length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial))]
+        else
+            x0[i] = wing_distance_initial[i - (length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial))]  
+        end
+    end
+end
+#testing stability_optim
+stability_optim(1,[1 2 3 4 5],1,1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10])
+
+function stability_optim2!(g, x)
+    #Constraint order: Lift constraint, leading_edge_constraint, static stability constraint, 
 
 end
+a = [1, 2]
+b = [3, 4]
 
 leading_edge_distribution = Array{Float64, 1}(undef, 50)
 chord_distribution = Array{Float64, 1}(undef, 50)
@@ -327,7 +379,7 @@ fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p +
 println(fc[1](1.0))
 =#
 
-static_stability, trim_stability = pitch_stability_analysis(dCFz, dCMy, -0.8, CFz, CMy, dCFz_tail, dCMy_tail, 0.15, CFz_tail, CMy_tail, 0.90, tail_volume_coefficient)
+static_stability, trim_stability = pitch_stability_analysis(dCFz_wing, dCMy_wing, -0.8, CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, 0.15, CFz_tail, CMy_tail, 0.90, tail_volume_coefficient)
 println(static_stability)
 println(trim_stability)
 
