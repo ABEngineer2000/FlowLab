@@ -297,8 +297,8 @@ end
 
 
 #perform a stability optimization for pitch stability
-function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, tail_distance_initial, wing_distance_initial,
-    wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint)
+function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial,
+    wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)))
     #variables that the otpimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
     #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, air_density, lift_constraint, leading_edge_constraint
     #create constraint array
@@ -313,7 +313,7 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
         end
     end
     #create x (variable that the optimizer will change) array
-    #=
+    
     x0 = Array{Float64, 1}(undef, length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial))
     for i = 1:length(x0)
         if i < length(wing_chord_initial) + 1
@@ -332,11 +332,10 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
             x0[i] = wing_distance_initial[i - (length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial))]  
         end
     end
-    =#
+    println(x0)
 end
 #testing stability_optim
-stability_optim(1,[1 2 3 4 5],1,1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10])
-
+stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
 function stability_optim2!(g, x)
     #Constraint order: Lift constraint, leading_edge_constraint, static stability constraint, 
 
@@ -366,8 +365,10 @@ tail_area = HS_span*mean(HS_chord_distribution)
 tail_volume_coefficient = tail_area / (wing_area*0.19)
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
+#=
 surface, system, α_i, CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, 2.0*pi/180, camber_line_function, wing_area)
 surface, system, α_i, CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(HS_distribution, HS_chord_distribution, HS_twist_distribution, HS_span, 2.0*pi/180, camber_line_function_tail, tail_area)
+=#
 #println(CFz_wing)
 #println(Cl)
 #println(CMy)
@@ -378,9 +379,10 @@ surface, system, α_i, CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(HS_distrib
 fc = fill((xc) -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end, length(chord_distribution))
 println(fc[1](1.0))
 =#
-
+#=
 static_stability, trim_stability = pitch_stability_analysis(dCFz_wing, dCMy_wing, -0.8, CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, 0.15, CFz_tail, CMy_tail, 0.90, tail_volume_coefficient)
 println(static_stability)
 println(trim_stability)
+=#
 
 println("Done") #this is so I don't print anything I don't want.
