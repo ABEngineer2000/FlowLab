@@ -313,6 +313,7 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
         end
     end
     #create x (variable that the optimizer will change) array
+    #=
     x0 = Array{Float64, 1}(undef, length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial))
     for i = 1:length(x0)
         if i < length(wing_chord_initial) + 1
@@ -331,6 +332,7 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
             x0[i] = wing_distance_initial[i - (length(wingspan_initial) + length(wing_chord_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial))]  
         end
     end
+    =#
 end
 #testing stability_optim
 stability_optim(1,[1 2 3 4 5],1,1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10])
@@ -339,8 +341,6 @@ function stability_optim2!(g, x)
     #Constraint order: Lift constraint, leading_edge_constraint, static stability constraint, 
 
 end
-a = [1, 2]
-b = [3, 4]
 
 leading_edge_distribution = Array{Float64, 1}(undef, 50)
 chord_distribution = Array{Float64, 1}(undef, 50)
