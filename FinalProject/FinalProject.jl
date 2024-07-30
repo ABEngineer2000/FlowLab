@@ -326,8 +326,21 @@ function x_distance_calculator(leading_edge_distribution, chord_distribution, sp
 end
 
 #computes the center of gravity for a wing assuming that the wing sections are trapezoidal
-function CG_calculator(chord_distribution, span)
-
+function CG_calculator(chord_distribution, span, leading_edge_distribution)
+    sum = 0.0
+    wing_area = wing_area_calculator(chord_distribution, span)
+    for i = 1:length(chord_distribution)
+        #the formula for a trapezoid depends on knowing which side is shorter hence why I have to add an extra elseif statement
+        if i < length(chord_distribution) && chord_distribution[i + 1] > chord_distribution[i]
+            #sum = area of trapezoid multiplied by the centroid of the trapezoid
+            sum = ((chord_distribution[i] + chord_distribution[i + 1])/2)*(span/(length(chord_distribution) - 1))*(((chord_distribution[i] + 2*chord_distribution[i + 1])/(3*(chord_distribution[i] + chord_distribution[i + 1])))*(span/(length(chord_distribution) - 1)) + leading_edge_distribution[i])
+        elseif i < length(chord_distribution) &&chord_distribution[i] > chord_distribution[i + 1]
+            sum = sum = ((chord_distribution[i] + chord_distribution[i + 1])/2)*(span/(length(chord_distribution) - 1))*(((chord_distribution[i + 1] + 2*chord_distribution[i])/(3*(chord_distribution[i] + chord_distribution[i + 1])))*(span/(length(chord_distribution) - 1)) + leading_edge_distribution[i])
+        else
+            sum = sum
+        end
+    end
+    CG = sum / wing_area
 end
 
 #perform a stability optimization for pitch stability
