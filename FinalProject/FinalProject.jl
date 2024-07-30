@@ -94,7 +94,7 @@ function VLM(leading_edge_distribution, chord_distribution, twist_distribution, 
     #Panel_Properties = get_surface_properties(system)
     #write_vtk("FinalProject\\symmetric-planar-wing", surfaces, Panel_Properties; symmetric = true)
 
-    return surfaces, system, α_i, CFz, CMy, dCFz, dCMy #, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
+    return #=surfaces, system, α_i,=# CFz, CMy, dCFz, dCMy #, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Panel_Properties #, grid, surface these I added as outputs for troubleshooting
 end
 
 function rcp_finder(surfaces, system, panels_span, panels_chord)
@@ -305,13 +305,12 @@ function wing_area_calculator(chord_distribution, span)
             wing_area = wing_area
         end
     end
-    println(wing_area)
     return wing_area
 end
 
 #perform a stability optimization for pitch stability
 function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial,
-    wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
+    wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), tail_leading_edge_initial = zeros(1, length(tail_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
     #variables that the otpimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
     #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, air_density, lift_constraint, leading_edge_constraint
     #create constraint array
@@ -346,15 +345,22 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
         end
     end
     =#
-    x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial, twist_initial, α]
+    x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial, twist_initial, α, tail_leading_edge_initial]
     
 end
 #testing stability_optim
 stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
+
 function stability_optim2!(g, x, camber_line_function)
     #Constraint order: Lift constraint, leading_edge_constraint, then static stability constraint, 
-    wing_area = wing_area_calulator(x[2], x[3])
-    VLM(x[1], x[2], x[8], x[3], x[9], camber_line_function, wing_area)
+    tail_efficiency = 0.90
+    wing_area = wing_area_calculator(x[2], x[3])
+    CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(x[1], x[2], x[8], x[3], x[9], camber_line_function, wing_area)
+    tail_area = wing_area_calculator(x[4], x[5])
+    CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(x[10], x[4], zeros(1, length(x[10])), x[5], x[9], xc -> 0.0, tail_area)
+    tail_volume_coefficient = tail_area / (wing_area * mean(x[2]))
+    dCmg, Cmg = pitch_stability_analysis(dCFz_wing, dCMy_wing, x[7], CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, x[6], CFz_tail, CMy_tail, tail_efficiency, tail_volume_coefficient)
+    return Cmg
 end
 
 leading_edge_distribution = Array{Float64, 1}(undef, 50)
@@ -369,21 +375,26 @@ HS_chord_distribution = Array{Float64, 1}(undef, 20)
 HS_twist_distribution = Array{Float64, 1}(undef, 20)
 HS_twist_distribution .= 0.0
 HS_distribution[:] .= 0.0
-HS_chord_distribution[:] .= 0.00001
-HS_span = 0.0001
-HS_location = 2.7
+HS_chord_distribution[:] .= 0.02
+HS_span = 0.125
+HS_location = 0.15
 M = 0.06
 p = 0.4
 camber_line_function = xc -> begin xc < p ? (M/p^2)*(2*p*xc - xc^2) : (M/(1-p)^2)*(1- 2*p + 2*p*xc - xc^2) end  
 camber_line_function_tail = xc -> 0.0
-wing_area = 0.11305
-tail_area = HS_span*mean(HS_chord_distribution)
-tail_volume_coefficient = tail_area / (wing_area*0.19)
+wing_area = wing_area_calculator(chord_distribution, span)
+tail_area = wing_area_calculator(HS_chord_distribution, HS_span)
+tail_volume_coefficient = tail_area / (wing_area*mean(chord_distribution))
+wing_location = -0.8
+
+#testing stability_optim2!
+stability_optim2!(1, [leading_edge_distribution, chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, twist_distribution, 2.0*pi/180, leading_edge_distribution], camber_line_function)
+
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
 #=
-surface, system, α_i, CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, 2.0*pi/180, camber_line_function, wing_area)
-surface, system, α_i, CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(HS_distribution, HS_chord_distribution, HS_twist_distribution, HS_span, 2.0*pi/180, camber_line_function_tail, tail_area)
+CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(leading_edge_distribution, chord_distribution, twist_distribution, span, 2.0*pi/180, camber_line_function, wing_area)
+CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(HS_distribution, HS_chord_distribution, HS_twist_distribution, HS_span, 2.0*pi/180, camber_line_function_tail, tail_area)
 =#
 #println(CFz_wing)
 #println(Cl)
