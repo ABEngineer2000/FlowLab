@@ -307,11 +307,33 @@ function wing_area_calculator(chord_distribution, span)
     end
     return wing_area
 end
+#computes the centroid of a wing given a chord distirubtion and span, assuming that the chords are interpolated using trapezoids
+function x_distance_calculator(leading_edge_distribution, chord_distribution, span, x_cg)
+    sum = 0.0
+    wing_area = wing_area_calculator(chord_distribution, span)
+    for i = 1:length(chord_distribution)
+        if i < length(chord_distribution)
+            #sum = area of trapezoid multiplied by the mean aerodynamic center of the trapezoidal wing
+            sum = ((chord_distribution[i] + chord_distribution[i + 1])/2)*(span/(length(chord_distribution) - 1)) * ((mean([chord_distribution[i], chord_distribution[i + 1]]))*0.25 + leading_edge_distribution[i])
+        else
+            sum = sum
+        end
+    end
+    mean_aerodynamic_center = sum / wing_area
+    x_distance = mean_aerodynamic_center - x_cg
+    println(x_distance)
+    return x_distance
+end
+
+#computes the center of gravity for a wing assuming that the wing sections are trapezoidal
+function CG_calculator(chord_distribution, span)
+
+end
 
 #perform a stability optimization for pitch stability
 function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial,
     wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), tail_leading_edge_initial = zeros(1, length(tail_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
-    #variables that the otpimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
+    #variables that the optimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
     #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, air_density, lift_constraint, leading_edge_constraint
     #create constraint array
     g = Array{Float64, 1}(undef, length(lift_constraint) + length(leading_edge_constraint) + length(static_stability_constraint))
@@ -349,9 +371,9 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
     
 end
 #testing stability_optim
-stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
+#stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
 
-function stability_optim2!(g, x, camber_line_function)
+function stability_optim2!(g, x)
     #Constraint order: Lift constraint, leading_edge_constraint, then static stability constraint, 
     tail_efficiency = 0.90
     wing_area = wing_area_calculator(x[2], x[3])
@@ -388,7 +410,7 @@ tail_volume_coefficient = tail_area / (wing_area*mean(chord_distribution))
 wing_location = -0.8
 
 #testing stability_optim2!
-stability_optim2!(1, [leading_edge_distribution, chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, twist_distribution, 2.0*pi/180, leading_edge_distribution], camber_line_function)
+#stability_optim2!(1, [leading_edge_distribution, chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, twist_distribution, 2.0*pi/180, leading_edge_distribution], camber_line_function)
 
 #surfaces, system, α_i = VLM(leading_edge_distribution, chord_distribution, span)
 #Cl, Cd, Cm, wing_area, CFz, CMy, dCFz, dCMy = Improved_wing_analysis(leading_edge_distribution, chord_distribution, span, "FinalProject\\Tabulated_Airfoil_Data\\NACA_6412.csv", 2.0*pi/180)
@@ -410,6 +432,22 @@ println(fc[1](1.0))
 static_stability, trim_stability = pitch_stability_analysis(dCFz_wing, dCMy_wing, -0.8, CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, 0.15, CFz_tail, CMy_tail, 0.90, tail_volume_coefficient)
 println(static_stability)
 println(trim_stability)
+=#
+
+lx = -Inf
+ux = Inf
+lg = -Inf
+ug = 1.1
+#this was created for some IPOPT tests I performed
+#=
+function fx1!(g, x)
+    y = x[1]
+    g[1] = a*x[1]^2 - 2
+    return y
+end
+options = Options(solver=IPOPT())  # choosing IPOPT solver
+a = 0.3
+xopt, fopt, info = minimize(fx1!, [2.1; 2.1], 2)
 =#
 
 println("Done") #this is so I don't print anything I don't want.
