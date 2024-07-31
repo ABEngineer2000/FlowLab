@@ -308,7 +308,7 @@ function wing_area_calculator(chord_distribution, span)
     return wing_area
 end
 #computes the centroid of a wing given a chord distirubtion and span, assuming that the chords are interpolated using trapezoids
-function x_distance_calculator(leading_edge_distribution, chord_distribution, span, x_cg)
+function mean_aerodynamic_center_calculator(leading_edge_distribution, chord_distribution, span)
     sum = 0.0
     wing_area = wing_area_calculator(chord_distribution, span)
     for i = 1:length(chord_distribution)
@@ -320,9 +320,7 @@ function x_distance_calculator(leading_edge_distribution, chord_distribution, sp
         end
     end
     mean_aerodynamic_center = sum / wing_area
-    x_distance = mean_aerodynamic_center - x_cg
-    println(x_distance)
-    return x_distance
+    return mean_aerodynamic_center
 end
 
 #computes the center of gravity for a wing assuming that the wing sections are trapezoidal
@@ -331,7 +329,7 @@ function CG_calculator(chord_distribution, span, leading_edge_distribution)
     wing_area = wing_area_calculator(chord_distribution, span)
     for i = 1:length(chord_distribution)
         #the formula for a trapezoid depends on knowing which side is shorter hence why I have to add an extra elseif statement
-        if i < length(chord_distribution) && chord_distribution[i + 1] > chord_distribution[i]
+        if i < length(chord_distribution) && chord_distribution[i + 1] >= chord_distribution[i]
             #sum = area of trapezoid multiplied by the centroid of the trapezoid
             sum = ((chord_distribution[i] + chord_distribution[i + 1])/2)*(span/(length(chord_distribution) - 1))*(((chord_distribution[i] + 2*chord_distribution[i + 1])/(3*(chord_distribution[i] + chord_distribution[i + 1])))*(span/(length(chord_distribution) - 1)) + leading_edge_distribution[i])
         elseif i < length(chord_distribution) &&chord_distribution[i] > chord_distribution[i + 1]
@@ -341,22 +339,25 @@ function CG_calculator(chord_distribution, span, leading_edge_distribution)
         end
     end
     CG = sum / wing_area
+    println(CG)
 end
+#CG_calculator([2.0, 1.0], 5.0, [0.0, 0.0])
 
 #perform a stability optimization for pitch stability
 function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial,
-    wing_density, tail_density, aircraft_weight, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), tail_leading_edge_initial = zeros(1, length(tail_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
+    wing_density_thickness, tail_density_thickness, aircraft_weight_CG, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), tail_leading_edge_initial = zeros(1, length(tail_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
     #variables that the optimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
     #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, air_density, lift_constraint, leading_edge_constraint
     #create constraint array
-    g = Array{Float64, 1}(undef, length(lift_constraint) + length(leading_edge_constraint) + length(static_stability_constraint))
-    for i = 1:length(g)
+    #Aircraft_weight_CG is a vector containing the aircraft weight and center of gravity without the wings
+    constraints = Array{Float64, 1}(undef, length(lift_constraint) + length(leading_edge_constraint) + length(static_stability_constraint))
+    for i = 1:length(constraints)
         if i < length(lift_constraint) + 1
-            g[i] = lift_constraint[i]
+            constraints[i] = lift_constraint[i]
         elseif i > length(lift_constraint) && i < length(lift_constraint) + length(leading_edge_constraint) + 1
-            g[i] = leading_edge_constraint[i - length(lift_constraint)]
+            constraints[i] = leading_edge_constraint[i - length(lift_constraint)]
         else
-            g[i] = static_stability_constraint[i - length(lift_constraint) - length(leading_edge_constraint)]
+            constraints[i] = static_stability_constraint[i - length(lift_constraint) - length(leading_edge_constraint)]
         end
     end
     #create x (variable that the optimizer will change) array
@@ -380,21 +381,33 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
         end
     end
     =#
-    x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial, twist_initial, α, tail_leading_edge_initial]
+    x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, α, tail_leading_edge_initial, wing_distance_initial, tail_distance_initial]
     
 end
 #testing stability_optim
 #stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
 
 function stability_optim2!(g, x)
-    #Constraint order: Lift constraint, leading_edge_constraint, then static stability constraint, 
+    #Constraint order: Lift constraint, leading_edge_constraint, then static stability constraint,
+     
+    wing_CG = CG_Calculator(x[2], x[3], x[1])
+    tail_CG = CG_Calculator(x[4], x[5], x[8])
     tail_efficiency = 0.90
     wing_area = wing_area_calculator(x[2], x[3])
-    CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(x[1], x[2], x[8], x[3], x[9], camber_line_function, wing_area)
+    CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(x[1], x[2], x[6], x[3], x[7], camber_line_function, wing_area)
     tail_area = wing_area_calculator(x[4], x[5])
-    CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(x[10], x[4], zeros(1, length(x[10])), x[5], x[9], xc -> 0.0, tail_area)
+    CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(x[8], x[4], zeros(1, length(x[8])), x[5], x[7], xc -> 0.0, tail_area)
     tail_volume_coefficient = tail_area / (wing_area * mean(x[2]))
-    dCmg, Cmg = pitch_stability_analysis(dCFz_wing, dCMy_wing, x[7], CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, x[6], CFz_tail, CMy_tail, tail_efficiency, tail_volume_coefficient)
+    CG = (wing_CG * wing_area * wing_density_thickness[1]* wing_density_thickness[2] + tail_CG*tail_area*tail_density_thickness[1]*tail_density_thickness[2] + aircraft_weight_CG[1]*aircraft_weight_CG[2])/(aircraft_weight_CG[1] + wing_density_thickness[1] + tail_density_thickness[1])
+    x_wing = mean_aerodynamic_center_calculator(x[1], x[2], x[3]) + x[9] - CG
+    x_tail = mean_aerodynamic_center_calculator(x[8], x[4], x[5]) + x[10] - CG
+    dCmg, Cmg = pitch_stability_analysis(dCFz_wing, dCMy_wing, x_wing, CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, x_tail, CFz_tail, CMy_tail, tail_efficiency, tail_volume_coefficient)
+
+    g[1] = dCmg #static stability constraint
+    #all other constraints added
+    for i = 1:length(constraints)
+        g[i + 1] = constraints[i]
+    end
     return Cmg
 end
 
