@@ -345,9 +345,9 @@ end
 
 #perform a stability optimization for pitch stability
 function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, tail_distance_initial, wing_distance_initial,
-    wing_density_thickness, tail_density_thickness, aircraft_weight_CG, air_density, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), tail_leading_edge_initial = zeros(1, length(tail_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
+    wing_density_thickness, tail_density_thickness, aircraft_weight_CG, lift_constraint, leading_edge_constraint, static_stability_constraint; twist_initial = zeros(1, length(wing_chord_initial)), leading_edge_initial = zeros(1, length(wing_chord_initial)), tail_leading_edge_initial = zeros(1, length(tail_chord_initial)), α = 0.0*pi/180, camber_line_function = xc -> 0.0)
     #variables that the optimizer will change: wing chord lengths, wingspan, tail chord lengths, tail_span, twist (for each chord length), tail_distance, wing_distance
-    #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, air_density, lift_constraint, leading_edge_constraint
+    #variables that will stay constant once inputted into the function: wing_density, tail_density, aircraft weight, lift_constraint, leading_edge_constraint
     #create constraint array
     #Aircraft_weight_CG is a vector containing the aircraft weight and center of gravity without the wings
     constraints = Array{Float64, 1}(undef, length(lift_constraint) + length(leading_edge_constraint) + length(static_stability_constraint))
@@ -381,8 +381,30 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
         end
     end
     =#
+    #set initial conditions vector
     x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, α, tail_leading_edge_initial, wing_distance_initial, tail_distance_initial]
     
+    #set up constraint and variable boundaries
+    ng = 1 + length(constraints)
+    lx = Array{Float64, 1}(undef, length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(α) + length(tail_leading_edge_initial) + length(wing_distance_initial) + length(tail_distance_initial))
+    ux = Array{Float64, 1}(undef, length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(α) + length(tail_leading_edge_initial) + length(wing_distance_initial) + length(tail_distance_initial))
+    lx[:] .= -Inf
+    ux[:] .= Inf
+    lg = Array{Float64, 1}(undef, length(constraints) + 1)
+    ug = Array{Float64, 1}(undef, length(constraints) + 1)
+    lg[:] .= -Inf
+    ug[:] .= 0.0
+
+    #set options up for the optimizer
+    ip_options = Dict(
+    "max_iter" => 300,
+    "tol" => 1e-6
+    )
+    solver = IPOPT(ip_options)
+    options = Options(;solver)
+    
+    xopt, fopt, info = minimize(stability_optim2!, x0, ng, lx, ux, lg, ug, options)
+    return xopt, fopt, info
 end
 #testing stability_optim
 #stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
