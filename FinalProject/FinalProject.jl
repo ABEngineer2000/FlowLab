@@ -339,7 +339,7 @@ function CG_calculator(chord_distribution, span, leading_edge_distribution)
         end
     end
     CG = sum / wing_area
-    println(CG)
+    #println(CG)
 end
 #CG_calculator([2.0, 1.0], 5.0, [0.0, 0.0])
 
@@ -371,16 +371,16 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
     end
     =#
     #define points in x0 where each set of variables starts
-    leading_edge_coordinate = 1
-    wing_chord_coordinate = length(leading_edge_initial) + 1
-    wingspan_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial)
-    tail_chord_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + 1
-    tailspan_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial)
-    twist_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + 1
-    tail_distance_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial)
-    wing_distance_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial)
-    α_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α)
-    tail_leading_edge_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + 1
+    global leading_edge_coordinate = 1
+    global wing_chord_coordinate = length(leading_edge_initial) + 1
+    global wingspan_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial)
+    global tail_chord_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + 1
+    global tailspan_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial)
+    global twist_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + 1
+    global tail_distance_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial)
+    global wing_distance_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial)
+    global α_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α)
+    global tail_leading_edge_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + 1
 
     #set initial conditions vector
     x0 = Array{Float64, 1}(undef, length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + length(tail_leading_edge_initial))
@@ -407,7 +407,7 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
     ug = Array{Float64, 1}(undef, 4)
     lg[:] .= -Inf
     ug[:] .= 0.0
-#=
+
     #set options up for the optimizer
     ip_options = Dict(
     "max_iter" => 300,
@@ -418,34 +418,33 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
     
     xopt, fopt, info = minimize(stability_optim2!, x0, ng, lx, ux, lg, ug, options)
     return xopt, fopt, info
-    =#
+    
 end
 #testing stability_optim
 #stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
 
 function stability_optim2!(g, x)
     #Constraint order: Lift constraint, leading_edge_constraint, then static stability constraint,
-     
-    wing_CG = CG_Calculator(x[2], x[3], x[1])
-    tail_CG = CG_Calculator(x[4], x[5], x[8])
+    wing_CG = CG_calculator(x[wing_chord_coordinate:wingspan_coordinate - 1], x[wingspan_coordinate], x[leading_edge_coordinate:wing_chord_coordinate - 1])
+    tail_CG = CG_calculator(x[tail_chord_coordinate:tailspan_coordinate - 1], x[tailspan_coordinate], x[tail_leading_edge_coordinate:length(x)])
     tail_efficiency = 0.90
-    wing_area = wing_area_calculator(x[2], x[3])
-    CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(x[1], x[2], x[6], x[3], x[7], camber_line_function, wing_area)
-    tail_area = wing_area_calculator(x[4], x[5])
-    CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(x[8], x[4], zeros(1, length(x[8])), x[5], x[7], xc -> 0.0, tail_area)
-    tail_volume_coefficient = tail_area / (wing_area * mean(x[2]))
+    wing_area = wing_area_calculator(x[wing_chord_coordinate:wingspan_coordinate - 1], x[wingspan_coordinate])
+    CFz_wing, CMy_wing, dCFz_wing, dCMy_wing = VLM(x[leading_edge_coordinate:wing_chord_coordinate - 1], x[wing_chord_coordinate:wingspan_coordinate - 1], x[twist_coordinate:tail_distance_coordinate - 1], x[wingspan_coordinate], x[α_coordinate], camber_line_function, wing_area)
+    tail_area = wing_area_calculator(x[tail_chord_coordinate:tailspan_coordinate - 1], x[tailspan_coordinate])
+    CFz_tail, CMy_tail, dCFz_tail, dCMy_tail = VLM(x[tail_leading_edge_coordinate:length(x)], x[tail_chord_coordinate:tailspan_coordinate - 1], zeros(1, length(x[leading_edge_coordinate:length(x)])), x[tailspan_coordinate], x[α_coordinate], xc -> 0.0, tail_area)
+    tail_volume_coefficient = tail_area / (wing_area * mean(x[wing_chord_coordinate:wingspan_coordinate - 1]))
     CG = (wing_CG * wing_area * wing_density_thickness[1]* wing_density_thickness[2] + tail_CG*tail_area*tail_density_thickness[1]*tail_density_thickness[2] + aircraft_weight_CG[1]*aircraft_weight_CG[2])/(aircraft_weight_CG[1] + wing_density_thickness[1] + tail_density_thickness[1])
-    x_wing = mean_aerodynamic_center_calculator(x[1], x[2], x[3]) + x[9] - CG
-    x_tail = mean_aerodynamic_center_calculator(x[8], x[4], x[5]) + x[10] - CG
+    x_wing = mean_aerodynamic_center_calculator(x[leading_edge_coordinate:wing_chord_coordinate - 1], x[wing_chord_coordinate:wingspan_coordinate - 1], x[wingspan_coordinate]) + x[α_coordinate] - CG
+    x_tail = mean_aerodynamic_center_calculator(x[wing_distance_coordinate], x[tail_chord_coordinate:tail_span_initial - 1], x[tailspan_coordinate]) + x[tail_leading_edge_coordinate:length(x)] - CG
     dCmg, Cmg = pitch_stability_analysis(dCFz_wing, dCMy_wing, x_wing, CFz_wing, CMy_wing, dCFz_tail, dCMy_tail, x_tail, CFz_tail, CMy_tail, tail_efficiency, tail_volume_coefficient)
 
     g[1] = dCmg #static stability constraint
     #lift constraint
     g[2] = lift_constraint - (CFz_wing*wing_area + CFz_tail*tail_area)*0.5*air_density*airspeed^2
     #leading_edge_constraint
-    g[3] = leading_edge_constraint .- x[1]
+    g[3] = leading_edge_constraint .- x[leading_edge_coordinate:wing_chord_coordinate - 1]
     #twist_constraint
-    g[4] = twist_constraint .- x[6]
+    g[4] = twist_constraint .- x[twist_coordinate:tail_distance_coordinate - 1]
 
     return Cmg
 end
@@ -479,7 +478,7 @@ twist_constraint = 0.0
 air_density = 0.03
 airspeed = 30.0
 
-stability_optim(chord_distribution, span, HS_distribution, HS_span, HS_location, wing_location, [1.0, 1.0], [1.0, 1.0], [20.0, 3.0], lift_constraint, leading_edge_constraint, twist_constraint, air_density, airspeed)
+stability_optim(chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, [1.0, 1.0], [1.0, 1.0], [20.0, 3.0], lift_constraint, leading_edge_constraint, twist_constraint, air_density, airspeed)
 
 #testing stability_optim2!
 #stability_optim2!(1, [leading_edge_distribution, chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, twist_distribution, 2.0*pi/180, leading_edge_distribution], camber_line_function)
