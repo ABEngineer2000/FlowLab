@@ -437,19 +437,20 @@ function stability_optim2!(g, x)
     for i = length(leading_edge_constraint) + 4:length(leading_edge_constraint) + length(twist_constraint)
         g[i] = Twist_constraint - x[twist_coordinate + i - length(leading_edge_constraint) - 4]
     end
-    return Cmg
+    CMG = Cmg^2
+    return CMG
 end
 
-leading_edge_distribution = Array{Float64, 1}(undef, 50)
-chord_distribution = Array{Float64, 1}(undef, 50)
-twist_distribution = Array{Float64, 1}(undef, 50)
+leading_edge_distribution = Array{Float64, 1}(undef, 2)
+chord_distribution = Array{Float64, 1}(undef, 2)
+twist_distribution = Array{Float64, 1}(undef, 2)
 leading_edge_distribution[:] .= 0.0
 chord_distribution[:] .= 0.190 + 0.0475
 twist_distribution[:] .= 0.0
 span = 0.595
-HS_distribution = Array{Float64, 1}(undef, 20)
-HS_chord_distribution = Array{Float64, 1}(undef, 20)
-HS_twist_distribution = Array{Float64, 1}(undef, 20)
+HS_distribution = Array{Float64, 1}(undef, 2)
+HS_chord_distribution = Array{Float64, 1}(undef, 2)
+HS_twist_distribution = Array{Float64, 1}(undef, 2)
 HS_twist_distribution .= 0.0
 HS_distribution[:] .= 0.0
 HS_chord_distribution[:] .= 0.02
@@ -469,7 +470,7 @@ twist_constraint = 0.0
 air_density = 0.03
 airspeed = 30.0
 
-stability_optim(chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, [1.0, 1.0], [1.0, 1.0], [20.0, 3.0], lift_constraint, leading_edge_constraint, twist_constraint, air_density, airspeed)
+stability_optim(chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, [1.0, 1.0], [1.0, 1.0], [20.0, 3.0], lift_constraint, leading_edge_constraint, twist_constraint, air_density, airspeed, α = 2.0*pi/180)
 #testing stability_optim2!
 #stability_optim2!(1, [leading_edge_distribution, chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, twist_distribution, 2.0*pi/180, leading_edge_distribution], camber_line_function)
 
