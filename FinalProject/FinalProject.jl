@@ -370,10 +370,34 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
         end
     end
     =#
+    #define points in x0 where each set of variables starts
+    leading_edge_coordinate = 1
+    wing_chord_coordinate = length(leading_edge_initial) + 1
+    wingspan_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial)
+    tail_chord_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + 1
+    tailspan_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial)
+    twist_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + 1
+    tail_distance_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial)
+    wing_distance_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial)
+    α_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α)
+    tail_leading_edge_coordinate = length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + 1
+
     #set initial conditions vector
-    x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, α, tail_leading_edge_initial, wing_distance_initial, tail_distance_initial]
-    
+    x0 = Array{Float64, 1}(undef, length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + length(tail_leading_edge_initial))
+    x0[1:length(leading_edge_initial)] = leading_edge_initial
+    x0[length(leading_edge_initial) + 1:length(leading_edge_initial) + length(wing_chord_initial)] = wing_chord_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial)] = wingspan_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + 1: length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial)] = tail_chord_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial)] = tail_span_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + 1: length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial)] = twist_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial)] = tail_distance_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial)] = wing_distance_initial
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α)] = α
+    x0[length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + 1: length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(tail_distance_initial) + length(wing_distance_initial) + length(α) + length(tail_leading_edge_initial)] = tail_leading_edge_initial
+    #x0 = [leading_edge_initial, wing_chord_initial, wingspan_initial, tail_chord_initial, tail_span_initial, twist_initial, α, tail_leading_edge_initial, wing_distance_initial, tail_distance_initial]
     #set up constraint and variable boundaries
+
+
     ng = 4
     lx = Array{Float64, 1}(undef, length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(α) + length(tail_leading_edge_initial) + length(wing_distance_initial) + length(tail_distance_initial))
     ux = Array{Float64, 1}(undef, length(leading_edge_initial) + length(wing_chord_initial) + length(wingspan_initial) + length(tail_chord_initial) + length(tail_span_initial) + length(twist_initial) + length(α) + length(tail_leading_edge_initial) + length(wing_distance_initial) + length(tail_distance_initial))
@@ -383,7 +407,7 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
     ug = Array{Float64, 1}(undef, 4)
     lg[:] .= -Inf
     ug[:] .= 0.0
-
+#=
     #set options up for the optimizer
     ip_options = Dict(
     "max_iter" => 300,
@@ -394,6 +418,7 @@ function stability_optim(wing_chord_initial, wingspan_initial, tail_chord_initia
     
     xopt, fopt, info = minimize(stability_optim2!, x0, ng, lx, ux, lg, ug, options)
     return xopt, fopt, info
+    =#
 end
 #testing stability_optim
 #stability_optim([1 2 3],[1 2 3 4 5],1,1,1,1,1,1,1,[1 2 3],[1 2 3], [4 5], [6 7 8 9 10]; twist_initial = [1.0, 2.0, 3.0])
@@ -480,20 +505,23 @@ static_stability, trim_stability = pitch_stability_analysis(dCFz_wing, dCMy_wing
 println(static_stability)
 println(trim_stability)
 =#
-#=
+
 lx = -Inf
 ux = Inf
 lg = -Inf
 ug = 1.1
 #this was created for some IPOPT tests I performed
+
+#=
 function fx1!(g, x)
-    y = x[1]
-    g[1] = a*x[1]^2 - 2
+    y = x[1] + x[2]
+    g[1] = a*x[1]^2 - 2*x[2][1]
     return y
 end
 options = Options(solver=IPOPT())  # choosing IPOPT solver
 a = 0.3
-xopt, fopt, info = minimize(fx1!, [2.1; 2.1], 2)
+x0 = [2.1, 2.3]
+xopt, fopt, info = minimize(fx1!, x0, 2)
 =#
 
 println("Done") #this is so I don't print anything I don't want.
