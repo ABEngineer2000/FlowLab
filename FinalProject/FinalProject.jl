@@ -527,7 +527,7 @@ function AircraftPlotter(Leading_edge_distribution, chord_distribution, wingspan
     end
     x2[:] = [0, 0, tailspan/2, tailspan/2, 0]
     plot1 = plot!(x2, y2, label = "Tail")
-    savefig(plot1, "FinalProject\\Optimized_Stable_Wing_ForSolution3.png")
+    savefig(plot1, "FinalProject\\StartingWingForSolution3.png")
     plot() #reset plot
 end
 #AircraftPlotter([0.415821, 0.329607], [0.813883, 0.89408], 1.41472, [-0.29927, -0.34431], [0.887, 0.886], 0.8054, 0.604536, 0.237928)
@@ -571,7 +571,7 @@ twist_constraint = 0.0
 air_density = 1.23
 airspeed = 30.0
 #plot starting wing
-#AircraftPlotter(leading_edge_distribution, chord_distribution, span, HS_distribution, HS_chord_distribution, HS_span, wing_location, HS_location)
+AircraftPlotter(leading_edge_distribution, chord_distribution, span, HS_distribution, HS_chord_distribution, HS_span, wing_location, HS_location)
 
 #stability_optim(chord_distribution, span, HS_chord_distribution, HS_span, HS_location, wing_location, [1.0, 1.0], [1.0, 1.0], [20.0, 3.0], lift_constraint, leading_edge_constraint, twist_constraint, air_density, airspeed, α = 2.0*pi/180)
 #testing stability_optim2!
