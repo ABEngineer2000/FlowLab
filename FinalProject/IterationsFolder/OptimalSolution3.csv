@@ -1,3 +1,6 @@
 Leading Edge Location,Wing Chord Length,Wingspan,Tail Chord Length,Tailspan,Angle of Twist (rad),Tail Distance,Wing Distance,Alpha,Tail Leading Edge Location,Cmg,dCmg
 0.415820797,0.813882978,1.414719596,0.887006681,0.805437117,-0.126829747,0.604536167,0.237928233,2,-0.299269142,-2.95E-07,-0.194696233
 0.329607173,0.894079809,1.414719596,0.885757849,0.805437117,-0.149049809,0.604536167,0.237928233,2,-0.344309919,-2.95E-07,-0.194696233
+,,,,,,,,,,,
+,,,,,,,,,,,
+,,,,,,,,,Starting Value,0.31580057,

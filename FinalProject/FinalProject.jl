@@ -530,8 +530,18 @@ function AircraftPlotter(Leading_edge_distribution, chord_distribution, wingspan
     savefig(plot1, "FinalProject\\Optimized_Stable_Wing_ForSolution3.png")
     plot() #reset plot
 end
-AircraftPlotter([0.415821, 0.329607], [0.813883, 0.89408], 1.41472, [-0.29927, -0.34431], [0.887, 0.886], 0.8054, 0.604536, 0.237928)
-
+#AircraftPlotter([0.415821, 0.329607], [0.813883, 0.89408], 1.41472, [-0.29927, -0.34431], [0.887, 0.886], 0.8054, 0.604536, 0.237928)
+function Cmg_comparison(Cmg1, Cmg2)
+    plot() #reset scatter plot
+    plot1 = plot([1], [Cmg1], seriestype=:scatter, label="Original Cmg")
+    plot1 = plot!([2], [Cmg2], seriestype=:scatter, label="Optimized Cmg")
+    savefig(plot1, "FinalProject\\Cmg_Comparison_ForSolution3.png")
+end
+#=
+Cmg1 = 0.3158
+Cmg2 = -2.95*10^(-7)
+Cmg_comparison(Cmg1, Cmg2)
+=#
 leading_edge_distribution = Array{Float64, 1}(undef, 2)
 chord_distribution = Array{Float64, 1}(undef, 2)
 twist_distribution = Array{Float64, 1}(undef, 2)

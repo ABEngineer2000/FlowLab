@@ -244,7 +244,6 @@ wing_span = 8.0 #set the wingspan to 8 meters
 speed = 1.0 #set the speed to 1 m/s
 density = 1.007 #This is in kg/m3
 
-
 #setting bounds to pass into the function
 x0 = [6.9, 6.8, 6.75, 6.74, 6.73, 6.72, 6.71, 6.70, 6.69, 6.5]
 
