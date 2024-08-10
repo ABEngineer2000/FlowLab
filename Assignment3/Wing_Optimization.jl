@@ -120,9 +120,9 @@ function Finalized_Wing_Analysis(A, n)
            leading_edge_distribution[i] = x[i - 1] - (x[i-1] - x[i])*0.25 #start at the previous chord position and add whatever the difference between the quarter chord lengths there is.
         end
     end
-    CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area = VLM(leading_edge_distribution, x, 8.0)
+    CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Γ = VLM(leading_edge_distribution, x, 8.0, Γ_output = true)
     lift_force = 0.5*1.007*wing_area*CFz
-    return CFz, CDiff, wing_area, lift_force
+    return CFz, CDiff, wing_area, lift_force, Γ
 end
 
 
@@ -157,7 +157,7 @@ min = minimum(results)
 println(min)
 =#
 
-function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vortex lattice analysis
+function VLM(leading_edge_distribution, chord_distribution, span; Γ_output = false) #Performs a Vortex lattice analysis
     #this function requires two distribution vecotrs which contain the 2d wing geometry.
     xle = Array{Float64, 1}(undef, length(chord_distribution))
     yle = Array{Float64, 1}(undef, length(chord_distribution))
@@ -197,10 +197,14 @@ function VLM(leading_edge_distribution, chord_distribution, span) #Performs a Vo
     system = steady_analysis(surfaces, ref, fs; symmetric = true)
     CF, CM = body_forces(system; frame=Wind()) #compute near body forces
     CDiff = far_field_drag(system) #compute farfield drag
+    Gamma = (system.Γ)[:] #pull out Γ values for plotting lift distribution.
     CFx, CFy, CFz = CF
     CMx, CMy, CMz = CM
-
-    return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area #, grid, surface these I added as outputs for troubleshooting
+    if Γ_output == false
+        return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area #, grid, surface these I added as outputs for troubleshooting
+    else
+        return CFx, CFy, CFz, CMx, CMy, CMz, CDiff, wing_area, Gamma
+    end
 end
 
 function leading_edge_finder(x) #this function finds the leading edge coordinates based on the chord length that was optimized
@@ -235,6 +239,21 @@ function wing_plotter(xopt, leading_edge_distribution, wingspan, filename) #this
     plot1 = plot(x, y_upper, label = "Leading Edge Coordinate")
     plot1 = plot!(x, y_lower, label = "Trailing Edge Coordinate")
     savefig(plot1, "$(filename)_Wingplot.png")
+end
+
+function lift_distribution_plotter(Γ, wingspan, filename)
+    plot() #resets plot
+    x = Array{Float64, 1}(undef, length(Γ)) #define x values for plotting
+    for i = 1:length(Γ)
+        if i == 1
+            x[i] = -4.0
+        else
+            x[i] = x[i - 1] + wingspan / (length(Γ))
+        end 
+    end
+    plot1 = plot(x, Γ, xlabel="Wing Position", ylabel="Γ value (scalar multiple of lift)", label="Γ Distribution")
+    savefig(plot1, filename)
+    plot() #resets plot
 end
 
 #defining variables
@@ -281,7 +300,8 @@ deltax = (4/(length(xopt) - 1))
 x, y, A = Wing_smoother(xopt, deltax)
 xnew = leading_edge_finder(y)
 wing_plotter(y, xnew, 8.0, "Assignment3\\Test15_100Iterations")
-CFz, CDiff, wing_area, lift_force = Finalized_Wing_Analysis(A, 15)
+CFz, CDiff, wing_area, lift_force, Γ = Finalized_Wing_Analysis(A, 15)
+lift_distribution_plotter(Γ, 8.0, "Assignment3\\Test15_Lift_Distribution.png")
 println("Smoothed Wing Numerics")
 println("Lift Force = $(lift_force)")
 println("CDiff = $(CDiff)")
