@@ -1,0 +1,17 @@
+Make sure your on the right branch using
+-git status
+
+if not then use
+git switch <branch name>
+
+Use
+-git add .
+to add all the changed files
+
+Then
+-git commit -m "Commit Message Here"
+for a commit message
+
+Lastly,
+-git push origin head
+to push to the branch repository
