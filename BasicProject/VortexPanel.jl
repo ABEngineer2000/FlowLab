@@ -156,6 +156,45 @@ function Aij_computer(
     )
     #initialize Aij Matrix to be an n + 1 x n + 1 matrix
     Aij = Matrix{Float64}(I, length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1)
+    rij_1 = Matrix{Float64}(I, length(Panel_data.Panel_ID), length(Panel_data.Panel_ID))
+    rij = Matrix{Float64}(I, length(Panel_data.Panel_ID), length(Panel_data.Panel_ID))
+    #Computes n x n entries
+    for i = 1:length(Panel_data.Panel_ID)
+        for j = 1:length(Panel_data.Panel_ID)
+            rij_1[i,j] = sqrt((Panel_data.Panel_end_points[j][1] - Panel_data.Panel_mid_points[i][1])^2 + (Panel_data.Panel_end_points[j][2] - Panel_data.Panel_mid_points[i][2])^2) #computes rij + 1
+            rij[i,j] = sqrt((Panel_data.Panel_start_points[j][1] - Panel_data.Panel_mid_points[i][1])^2 + (Panel_data.Panel_start_points[j][2] - Panel_data.Panel_mid_points[i][2])^2) #computes rij
+            Aij[i, j] = (
+                log(ℯ, rij_1[i,j] / rij[i,j])*sin(Panel_data.theta[i] - Panel_data.theta[j]) + Betaij[i,j]*cos(Panel_data.theta[i] - Panel_data.theta[j]) #computes Aij
+            )
+        end
+    end
+
+    #computes [1 through n rows, n + 1 column] for Aij see equation 2.223
+    for i = 1:length(Panel_data.Panel_ID)
+        for j = 1:length(Panel_data.Panel_ID)
+            Aij[i, length(Panel_data.Panel_ID) +  1] = Aij[i, length(Panel_data.Panel_ID) +  1] + log(ℯ, (rij_1[i,j] / rij[i,j]))*cos(Panel_data.theta[i] - Panel_data.theta[j]) - Betaij[i,j]*sin(Panel_data.theta[i] - Panel_data.theta[j])
+        end
+    end
+
+    #computes [n + 1 row, 1 through n columns]
+    for j = 1:length(Panel_data.Panel_ID)
+        Aij[length(Panel_data.Panel_ID) + 1, j] = (
+            Betaij[1,j]*sin(Panel_data.theta[1] - Panel_data.theta[j]) - log(ℯ, (rij_1[1,j] / rij[1,j]))*cos(Panel_data.theta[1] - Panel_data.theta[j])
+            + Betaij[length(Panel_data.Panel_ID),j]*sin(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j]) - log(ℯ, (rij_1[length(Panel_data.Panel_ID),j] / rij[length(Panel_data.Panel_ID),j]))*cos(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j])
+            )
+    end
+
+    #computes [n + 1 row, n + 1 column]
+    for j = 1:length(Panel_data.Panel_ID)
+        Aij[length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1] = (
+            Aij[length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1]
+            + Betaij[1,j]*cos(Panel_data.theta[1] - Panel_data.theta[j])
+            + log(ℯ, (rij_1[1,j] / rij[1,j]))*sin(Panel_data.theta[1] - Panel_data.theta[j])
+            ) + (
+                Betaij[length(Panel_data.Panel_ID),j]*cos(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j])
+                +  log(ℯ, (rij_1[length(Panel_data.Panel_ID),j] / rij[length(Panel_data.Panel_ID),j]))*sin(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j])
+            )
+    end
 
     return Aij
 end
