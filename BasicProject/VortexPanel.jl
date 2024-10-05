@@ -21,6 +21,8 @@ mutable struct Panels
         Panel_ID::Vector{Int64}
         Panel_start_points::Vector{Vector{Float64}}
         Panel_end_points::Vector{Vector{Float64}}
+        Panel_mid_points::Vector{Vector{Float64}}
+        Panel_length::Vector{Float64}
 end
 
 """
@@ -56,24 +58,29 @@ function panel_setup(
     =#
 
     #Initialize the vectors I will put in the Panels struct
-    startpoints = Vector{Vector{Float64}}
-    endpoints = Vector{Vector{Float64}}
-    ID = Vector{Int64}
     ID = [0]
     startpoints = [[0.0, 0.0]]
     endpoints = [[0.0, 0.0]]
+    midpoints = [[0.0, 0.0]]
+    l = [0.0]
 
     #add data to the vectors that will create the Panels struct
     for i = 1:length(x) - 1
         push!(ID, i)
         startpoints = vcat(startpoints, [[x[i],z[i]]])
         endpoints = vcat(endpoints, [[x[i + 1], z[i + 1]]])
+        midpoints = vcat(midpoints, [[(x[i] + x[i + 1])/2 , (z[i] + z[i + 1])/2]])
+        push!(l, sqrt((x[i + 1] - x[i])^2 + (z[i + 1] - z[i])^2))
     end
     #Get rid of the 0's that I put in to initialize the vectors I'm using
     splice!(ID, 1)
     splice!(startpoints, 1)
     splice!(endpoints, 1)
-    test_panels = Panels(ID, startpoints, endpoints)
+    splice!(midpoints, 1)
+    splice!(l, 1)
+    
+    #create the struct
+    test_panels = Panels(ID, startpoints, endpoints, midpoints, l)
 
     return test_panels
 end
