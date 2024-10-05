@@ -54,21 +54,28 @@ function panel_setup(
     test_panels = Panels([1,2],[[1.1,2.2], [3.1, 2.2]],[[1.1,2.2], [3.1, 2.2]])
     println(test_panels.Panel_start_points[2][2])
     =#
-    Test1 = NACA4(3.0, 10.0, 12.0, false)
-    x,z = naca4(Test1)
+
+    #Initialize the vectors I will put in the Panels struct
     startpoints = Vector{Vector{Float64}}
     endpoints = Vector{Vector{Float64}}
     ID = Vector{Int64}
     ID = [0]
     startpoints = [[0.0, 0.0]]
     endpoints = [[0.0, 0.0]]
+
+    #add data to the vectors that will create the Panels struct
     for i = 1:length(x) - 1
         push!(ID, i)
-        startpoints = vcat(startpoints, [x[i],z[i]])
-        endpoints = vcat(endpoints, [x[i + 1], z[i + 1]])
+        startpoints = vcat(startpoints, [[x[i],z[i]]])
+        endpoints = vcat(endpoints, [[x[i + 1], z[i + 1]]])
     end
+    #Get rid of the 0's that I put in to initialize the vectors I'm using
+    splice!(ID, 1)
+    splice!(startpoints, 1)
+    splice!(endpoints, 1)
+    test_panels = Panels(ID, startpoints, endpoints)
 
-    return 1 #test_panels
+    return test_panels
 end
 
 #Creates NACA coordinates using Airfoil AirfoilTools
@@ -82,6 +89,9 @@ x = [[0.0, 0.0]]
 x = vcat([[1.0, 2.0]])
 println(x)
 =#
-x,z = 1,2
-panel_setup(x,z)
+
+Test1 = NACA4(3.0, 10.0, 12.0, false)
+x,z = naca4(Test1)
+
+test_panels = panel_setup(x,z)
 println(" ")
