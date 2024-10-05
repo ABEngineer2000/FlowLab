@@ -197,7 +197,7 @@ function Aij_computer(
             )
     end
 
-    return Aij
+    return Aij, rij_1, rij
 end
 
 
@@ -222,8 +222,8 @@ function B_computer(
     Panel_data,
     α,
     Vinf
-    )
-    α = α*π / 180
+    ) 
+    α = α*π / 180 #convert α to radians
     n = length(Panel_data.Panel_ID)
     B = Matrix{Float64}(undef, n + 1, 1)
     
@@ -268,15 +268,22 @@ end
     Panel_data,
     Aij,
     βij,
-    q_λ_vector
+    q_λ_vector,
+    vinf,
+    α
     )
 
-Solves system of equations for the Hess-Smith Panel Method - see Computational Aerodynamics by Andrew Ning equation 2.234
+Computes the tangent velocity at the control point of each of the panels
 
 # Arguments:
 - `Panel_data::Panels` : Panel struct containing panel data
 - `Aij::Matrix` : Aij Matrix - see Aij_computer
+- `rij::Matrix` : rij - see Aij_computer
+- `rij_1::Matrix` : rij_1 - see Aij_computer
 - `βij::Matrix` : βij Matrix - see Beta_computer
+- `q_λ_vector::Matrix` : Solution vector - see solve_system
+- `Vinf::Float` : Free stream velocity relative to the airfoil chord length
+- `α::Float` : Angle of attack in degrees
 
 # Returns:
 - `solution::Matrix` : n + 1 x 1 Matrix where 1 through n rows are the source strengths and the n + 1 row is the vortex strength
@@ -284,10 +291,33 @@ Solves system of equations for the Hess-Smith Panel Method - see Computational A
 function Tangent_velocity_computer(
     Panel_data,
     Aij,
+    rij,
+    rij_1,
     βij,
-    q_λ_vector
+    q_λ_vector,
+    Vinf,
+    α
     )
+    α = α*π/180 #convert α to radians
+    n = length(Panel_data.Panel_ID)
+    Vti = Vector{Float64}(undef, n)
 
+    #compute's tangent velocity at each of the panels see equation 2.237 in Computational Aerodynamics by Andrew Ning
+    for i = 1:n
+        Vti[i] = Vinf*cos(Panel_data.theta[i] - α)
+        for j = 1:n
+            Vti[i] = (Vti[i]
+            + (1 / (2*π))*q_λ_vector[j]*(
+                βij[i,j]*sin(Panel_data.theta[i] - Panel_data.theta[j]) - log(ℯ, (rij_1[i,j] / rij[i,j]))*cos(Panel_data.theta[i] - Panel_data.theta[j])
+            )
+            + (q_λ_vector[n + 1] / (2*π))*(
+                βij[i,j]*cos(Panel_data.theta[i] - Panel_data.theta[j]) + log(ℯ, (rij_1[i,j] / rij[i,j]))*sin(Panel_data.theta[i] - Panel_data.theta[j])
+            )
+            )
+        end
+    end
+    
+    return Vti
 end
 #Creates NACA coordinates using Airfoil AirfoilTools
 Test1 = NACA4(2.0, 4.0, 12.0, false)
@@ -297,7 +327,8 @@ xvalues = [0.0]
 #call panel setup function
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 Betaij = Beta_computer(test_panels)
-Aij = Aij_computer(test_panels, Betaij)
+Aij, rij_1, rij = Aij_computer(test_panels, Betaij)
 B = B_computer(test_panels, 3.0, 1.0)
 solution = solve_system(Aij, B)
+Tangent_velocity_computer(test_panels, Aij,rij, rij_1, Betaij, solution, 1.0, 3.0)
 println(" ")
