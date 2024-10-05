@@ -78,9 +78,18 @@ function panel_setup(
     splice!(endpoints, 1)
     splice!(midpoints, 1)
     splice!(l, 1)
-    
+
     #create the struct
     test_panels = Panels(ID, startpoints, endpoints, midpoints, l)
+
+    #if graph is set to true then plot the airfoil
+    if graph == true
+        plot1 = plot(x,z)
+        plot!(legend = false)
+        xlims!(0.0, 1.0)
+        ylims!(-0.5,0.5)
+        savefig(plot1, graph_filename)
+    end
 
     return test_panels
 end
@@ -97,8 +106,8 @@ x = vcat([[1.0, 2.0]])
 println(x)
 =#
 
-Test1 = NACA4(3.0, 10.0, 12.0, false)
+Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
-
-test_panels = panel_setup(x,z)
+xvalues = [0.0]
+test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 println(" ")
