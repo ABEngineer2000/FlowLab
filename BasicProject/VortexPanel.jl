@@ -197,7 +197,7 @@ function Aij_computer(
             )
     end
 
-    return Aij, rij_1, rij
+    return Aij, rij, rij_1
 end
 
 
@@ -325,7 +325,7 @@ x,z = naca4(Test1)
 #call panel setup function
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 Betaij = Beta_computer(test_panels)
-Aij, rij_1, rij = Aij_computer(test_panels, Betaij)
+Aij, rij, rij_1 = Aij_computer(test_panels, Betaij)
 B = B_computer(test_panels, 3.0, 1.0)
 solution = solve_system(Aij, B)
 Tangent_velocity_computer(test_panels, rij, rij_1, Betaij, solution, 1.0, 3.0)
