@@ -23,6 +23,7 @@ mutable struct Panels
         Panel_end_points::Vector{Vector{Float64}}
         Panel_mid_points::Vector{Vector{Float64}}
         Panel_length::Vector{Float64}
+        theta::Vector{Float64}
 end
 
 """
@@ -43,7 +44,7 @@ Creates panels from points on an airfoil
 - `graph_filename::String = ""` : If graph is true, graph_filename is a string containing the desired file location for the graph
 
 # Returns:
-- `Airfoil::Array` : Array with each panel ID, left, and right coordinates.
+- `panel_data::Panels` : Struct with each panel ID, left, right, and midpoint coordinates. Also includes length coordinates and angle coordinates relative to the x axis.
 """
 function panel_setup(
     x,
@@ -63,6 +64,7 @@ function panel_setup(
     endpoints = [[0.0, 0.0]]
     midpoints = [[0.0, 0.0]]
     l = [0.0]
+    θ = [0.0]
 
     #add data to the vectors that will create the Panels struct
     for i = 1:length(x) - 1
@@ -71,6 +73,7 @@ function panel_setup(
         endpoints = vcat(endpoints, [[x[i + 1], z[i + 1]]])
         midpoints = vcat(midpoints, [[(x[i] + x[i + 1])/2 , (z[i] + z[i + 1])/2]])
         push!(l, sqrt((x[i + 1] - x[i])^2 + (z[i + 1] - z[i])^2))
+        push!(θ, asin((z[i + 1] - z[i])/2))
     end
     #Get rid of the 0's that I put in to initialize the vectors I'm using
     splice!(ID, 1)
@@ -78,9 +81,10 @@ function panel_setup(
     splice!(endpoints, 1)
     splice!(midpoints, 1)
     splice!(l, 1)
+    splice!(θ, 1)
 
     #create the struct
-    test_panels = Panels(ID, startpoints, endpoints, midpoints, l)
+    panel_data = Panels(ID, startpoints, endpoints, midpoints, l, θ)
 
     #if graph is set to true then plot the airfoil
     if graph == true
@@ -91,23 +95,55 @@ function panel_setup(
         savefig(plot1, graph_filename)
     end
 
-    return test_panels
+    return panel_data
 end
 
+"""
+    Beta_computer(
+    Panel_data
+    )
+
+Creates panels from points on an airfoil
+
+# Arguments:
+- `Panel_data::Panels` : Panels struct for the given airfoil
+
+# Returns:
+- `Betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
+"""
+function Beta_computer(
+    Panel_data
+)
+    Betaij = Array{Float64, 2}(undef, length(Panel_data.Panel_ID), length(Panel_data.Panel_ID)) #create n x n Matrix
+
+    #using equation 2.212
+    for i = 1:length(Panel_data.Panel_ID)
+        for j = 1:length(Panel_data.Panel_ID)
+            if i == j
+                Betaij[i,j] = π*1
+            else
+                Betaij[i,j] = atan(
+                        ((Panel_data.Panel_start_points[j][1] - Panel_data.Panel_mid_points[i][1])*(Panel_data.Panel_end_points[j][2] - Panel_data.Panel_mid_points[i][2])
+                         - (Panel_data.Panel_start_points[j][2] - Panel_data.Panel_mid_points[i][2])*(Panel_data.Panel_end_points[j][1] - Panel_data.Panel_mid_points[i][1]))
+                         ,
+                            ((Panel_data.Panel_start_points[j][1] - Panel_data.Panel_mid_points[i][1])*(Panel_data.Panel_end_points[j][1] - Panel_data.Panel_mid_points[i][1])
+                            + (Panel_data.Panel_start_points[j][2] - Panel_data.Panel_mid_points[i][2])*(Panel_data.Panel_end_points[j][2] - Panel_data.Panel_mid_points[i][2]))                       
+                    )
+            end
+        end
+    end
+    return Betaij
+end
 #Creates NACA coordinates using Airfoil AirfoilTools
-
-#testing
-#=
-Test1 = NACA4(3.0, 10.0, 12.0, false)
-x,z = naca4(Test1)
-x = Vector{Vector{Float64}}
-x = [[0.0, 0.0]]
-x = vcat([[1.0, 2.0]])
-println(x)
-=#
-
 Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
 xvalues = [0.0]
+
+#call panel setup function
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
+Betaij = Beta_computer(test_panels)
+println("xi, yi = $(test_panels.Panel_mid_points[42])")
+println("xj, yj = $(test_panels.Panel_start_points[120])")
+println("xj + 1, yj + 1 = $(test_panels.Panel_end_points[120])")
+println("Beta[42,120] = $(Betaij[42,120])")
 println(" ")
