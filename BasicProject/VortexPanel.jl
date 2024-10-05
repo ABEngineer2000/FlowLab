@@ -103,7 +103,7 @@ end
     Panel_data
     )
 
-Creates panels from points on an airfoil
+Computes Betaij values for an airfoil
 
 # Arguments:
 - `Panel_data::Panels` : Panels struct for the given airfoil
@@ -116,7 +116,7 @@ function Beta_computer(
 )
     Betaij = Array{Float64, 2}(undef, length(Panel_data.Panel_ID), length(Panel_data.Panel_ID)) #create n x n Matrix
 
-    #using equation 2.212
+    #using equation 2.212 this for loop computes βij
     for i = 1:length(Panel_data.Panel_ID)
         for j = 1:length(Panel_data.Panel_ID)
             if i == j
@@ -134,6 +134,31 @@ function Beta_computer(
     end
     return Betaij
 end
+
+"""
+    Aij_computer(
+    Panel_data,
+    Betaij
+    )
+
+Computes Aij values from an airfoil
+
+# Arguments:
+- `Panel_data::Panels` : Panels struct for the given airfoil
+- `Betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
+
+# Returns:
+- `Aij::Array` : Array with Aij values, see Computational Aerodynamic by Andrew Ning 2.223, 2.233, and 2.234
+"""
+function Aij_computer(
+    Panel_data,
+    Betaij
+    )
+    #initialize Aij Matrix to be an n + 1 x n + 1 matrix
+    Aij = Matrix{Float64}(I, length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1)
+
+    return Aij
+end
 #Creates NACA coordinates using Airfoil AirfoilTools
 Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
@@ -142,8 +167,5 @@ xvalues = [0.0]
 #call panel setup function
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 Betaij = Beta_computer(test_panels)
-println("xi, yi = $(test_panels.Panel_mid_points[42])")
-println("xj, yj = $(test_panels.Panel_start_points[120])")
-println("xj + 1, yj + 1 = $(test_panels.Panel_end_points[120])")
-println("Beta[42,120] = $(Betaij[42,120])")
+Aij = Aij_computer(test_panels, Betaij)
 println(" ")
