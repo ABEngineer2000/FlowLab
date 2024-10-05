@@ -277,7 +277,6 @@ Computes the tangent velocity at the control point of each of the panels
 
 # Arguments:
 - `Panel_data::Panels` : Panel struct containing panel data
-- `Aij::Matrix` : Aij Matrix - see Aij_computer
 - `rij::Matrix` : rij - see Aij_computer
 - `rij_1::Matrix` : rij_1 - see Aij_computer
 - `βij::Matrix` : βij Matrix - see Beta_computer
@@ -286,11 +285,10 @@ Computes the tangent velocity at the control point of each of the panels
 - `α::Float` : Angle of attack in degrees
 
 # Returns:
-- `solution::Matrix` : n + 1 x 1 Matrix where 1 through n rows are the source strengths and the n + 1 row is the vortex strength
+- `Vti::Vector` : n length Vector which holds the value of the tangent velocity at the control point for each panel
 """
 function Tangent_velocity_computer(
     Panel_data,
-    Aij,
     rij,
     rij_1,
     βij,
@@ -316,13 +314,13 @@ function Tangent_velocity_computer(
             )
         end
     end
-    
+
     return Vti
 end
+
 #Creates NACA coordinates using Airfoil AirfoilTools
 Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
-xvalues = [0.0]
 
 #call panel setup function
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
