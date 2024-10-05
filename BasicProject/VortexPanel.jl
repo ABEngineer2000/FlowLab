@@ -148,19 +148,20 @@ Computes Aij values from an airfoil
 - `Betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
 
 # Returns:
-- `Aij::Array` : Array with Aij values, see Computational Aerodynamic by Andrew Ning 2.223, 2.233, and 2.234
+- `Aij::Matrix` : Array with Aij values, see Computational Aerodynamics by Andrew Ning 2.223, 2.233, and 2.234
 """
 function Aij_computer(
     Panel_data,
     Betaij
     )
+    n = length(Panel_data.Panel_ID)
     #initialize Aij Matrix to be an n + 1 x n + 1 matrix
-    Aij = Matrix{Float64}(I, length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1)
-    rij_1 = Matrix{Float64}(I, length(Panel_data.Panel_ID), length(Panel_data.Panel_ID))
-    rij = Matrix{Float64}(I, length(Panel_data.Panel_ID), length(Panel_data.Panel_ID))
+    Aij = Matrix{Float64}(I, n + 1, n + 1)
+    rij_1 = Matrix{Float64}(I, n, n)
+    rij = Matrix{Float64}(I, n, n)
     #Computes n x n entries
-    for i = 1:length(Panel_data.Panel_ID)
-        for j = 1:length(Panel_data.Panel_ID)
+    for i = 1:length(n)
+        for j = 1:length(n)
             rij_1[i,j] = sqrt((Panel_data.Panel_end_points[j][1] - Panel_data.Panel_mid_points[i][1])^2 + (Panel_data.Panel_end_points[j][2] - Panel_data.Panel_mid_points[i][2])^2) #computes rij + 1
             rij[i,j] = sqrt((Panel_data.Panel_start_points[j][1] - Panel_data.Panel_mid_points[i][1])^2 + (Panel_data.Panel_start_points[j][2] - Panel_data.Panel_mid_points[i][2])^2) #computes rij
             Aij[i, j] = (
@@ -170,33 +171,94 @@ function Aij_computer(
     end
 
     #computes [1 through n rows, n + 1 column] for Aij see equation 2.223
-    for i = 1:length(Panel_data.Panel_ID)
-        for j = 1:length(Panel_data.Panel_ID)
-            Aij[i, length(Panel_data.Panel_ID) +  1] = Aij[i, length(Panel_data.Panel_ID) +  1] + log(ℯ, (rij_1[i,j] / rij[i,j]))*cos(Panel_data.theta[i] - Panel_data.theta[j]) - Betaij[i,j]*sin(Panel_data.theta[i] - Panel_data.theta[j])
+    for i = 1:n
+        for j = 1:n
+            Aij[i, n + 1] = Aij[i, n + 1] + log(ℯ, (rij_1[i,j] / rij[i,j]))*cos(Panel_data.theta[i] - Panel_data.theta[j]) - Betaij[i,j]*sin(Panel_data.theta[i] - Panel_data.theta[j])
         end
     end
 
     #computes [n + 1 row, 1 through n columns]
-    for j = 1:length(Panel_data.Panel_ID)
-        Aij[length(Panel_data.Panel_ID) + 1, j] = (
+    for j = 1:n
+        Aij[n + 1, j] = (
             Betaij[1,j]*sin(Panel_data.theta[1] - Panel_data.theta[j]) - log(ℯ, (rij_1[1,j] / rij[1,j]))*cos(Panel_data.theta[1] - Panel_data.theta[j])
-            + Betaij[length(Panel_data.Panel_ID),j]*sin(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j]) - log(ℯ, (rij_1[length(Panel_data.Panel_ID),j] / rij[length(Panel_data.Panel_ID),j]))*cos(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j])
+            + Betaij[n,j]*sin(Panel_data.theta[n] - Panel_data.theta[j]) - log(ℯ, (rij_1[n,j] / rij[n,j]))*cos(Panel_data.theta[n] - Panel_data.theta[j])
             )
     end
 
     #computes [n + 1 row, n + 1 column]
-    for j = 1:length(Panel_data.Panel_ID)
-        Aij[length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1] = (
-            Aij[length(Panel_data.Panel_ID) + 1, length(Panel_data.Panel_ID) + 1]
+    for j = 1:n
+        Aij[n + 1, n + 1] = (
+            Aij[n + 1, n + 1]
             + Betaij[1,j]*cos(Panel_data.theta[1] - Panel_data.theta[j])
             + log(ℯ, (rij_1[1,j] / rij[1,j]))*sin(Panel_data.theta[1] - Panel_data.theta[j])
             ) + (
-                Betaij[length(Panel_data.Panel_ID),j]*cos(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j])
-                +  log(ℯ, (rij_1[length(Panel_data.Panel_ID),j] / rij[length(Panel_data.Panel_ID),j]))*sin(Panel_data.theta[length(Panel_data.Panel_ID)] - Panel_data.theta[j])
+                Betaij[n,j]*cos(Panel_data.theta[n] - Panel_data.theta[j])
+                +  log(ℯ, (rij_1[n,j] / rij[n,j]))*sin(Panel_data.theta[n] - Panel_data.theta[j])
             )
     end
 
     return Aij
+end
+
+
+"""
+    B_computer(
+    Panel_data,
+    α,
+    Vinf
+    )
+
+Computes B valeus from an airfoil see Computational Aerodynamics by Andrew Ning equations 2.233 and 2.232
+
+# Arguments:
+- `Panel_data::Panels` : Panels struct for the given airfoil
+- `α::Float` : User specified angle of attack in degrees
+- `Vinf::Float` : User specified free streamm velocity relative to the airfoil chord length
+
+# Returns:
+- `B::Matrix` : Matrix with B values
+"""
+function B_computer(
+    Panel_data,
+    α,
+    Vinf
+    )
+    α = α*π / 180
+    n = length(Panel_data.Panel_ID)
+    B = Matrix{Float64}(undef, n + 1, 1)
+    
+    #compute 1 through n rows
+    for i = 1:n
+        B[i,1] = 2*π*Vinf*sin(Panel_data.theta[i] - α)
+    end
+
+    #compute n +1 row
+    B[n + 1,1] = -2*π*Vinf*(cos(Panel_data.theta[1] - α) + cos(Panel_data.theta[n]  - α))
+    
+    return B
+end
+
+"""
+    solve_system(
+    Aij,
+    B
+    )
+
+Solves system of equations for the Hess-Smith Panel Method - see Computational Aerodynamics by Andrew Ning equation 2.234
+
+# Arguments:
+- `Aij::Matrix` : Aij Matrix - see Aij_computer
+- `B::Matrix` : B values - see B_computer
+
+# Returns:
+- `q::Vector` : Vector with source strengths
+- `λ::Float` : Strength of the vortex
+"""
+function solve_system(
+    Aij,
+    B
+)
+
 end
 #Creates NACA coordinates using Airfoil AirfoilTools
 Test1 = NACA4(2.0, 4.0, 12.0, false)
@@ -207,4 +269,5 @@ xvalues = [0.0]
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 Betaij = Beta_computer(test_panels)
 Aij = Aij_computer(test_panels, Betaij)
+B_computer(test_panels, 3.0, 1.0)
 println(" ")
