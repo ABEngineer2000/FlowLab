@@ -160,8 +160,8 @@ function Aij_computer(
     rij_1 = Matrix{Float64}(I, n, n)
     rij = Matrix{Float64}(I, n, n)
     #Computes n x n entries
-    for i = 1:length(n)
-        for j = 1:length(n)
+    for i = 1:n
+        for j = 1:n
             rij_1[i,j] = sqrt((Panel_data.Panel_end_points[j][1] - Panel_data.Panel_mid_points[i][1])^2 + (Panel_data.Panel_end_points[j][2] - Panel_data.Panel_mid_points[i][2])^2) #computes rij + 1
             rij[i,j] = sqrt((Panel_data.Panel_start_points[j][1] - Panel_data.Panel_mid_points[i][1])^2 + (Panel_data.Panel_start_points[j][2] - Panel_data.Panel_mid_points[i][2])^2) #computes rij
             Aij[i, j] = (
@@ -251,13 +251,42 @@ Solves system of equations for the Hess-Smith Panel Method - see Computational A
 - `B::Matrix` : B values - see B_computer
 
 # Returns:
-- `q::Vector` : Vector with source strengths
-- `λ::Float` : Strength of the vortex
+- `solution::Matrix` : n + 1 x 1 Matrix where 1 through n rows are the source strengths and the n + 1 row is the vortex strength
 """
 function solve_system(
     Aij,
     B
 )
+    n = length(B)
+    solution = Matrix{Float64}(undef, n + 1, 1)
+    solution = inv(Aij)*B
+    return solution
+end
+
+"""
+    Tangent_Velocity_computer(
+    Panel_data,
+    Aij,
+    βij,
+    q_λ_vector
+    )
+
+Solves system of equations for the Hess-Smith Panel Method - see Computational Aerodynamics by Andrew Ning equation 2.234
+
+# Arguments:
+- `Panel_data::Panels` : Panel struct containing panel data
+- `Aij::Matrix` : Aij Matrix - see Aij_computer
+- `βij::Matrix` : βij Matrix - see Beta_computer
+
+# Returns:
+- `solution::Matrix` : n + 1 x 1 Matrix where 1 through n rows are the source strengths and the n + 1 row is the vortex strength
+"""
+function Tangent_velocity_computer(
+    Panel_data,
+    Aij,
+    βij,
+    q_λ_vector
+    )
 
 end
 #Creates NACA coordinates using Airfoil AirfoilTools
@@ -269,5 +298,6 @@ xvalues = [0.0]
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 Betaij = Beta_computer(test_panels)
 Aij = Aij_computer(test_panels, Betaij)
-B_computer(test_panels, 3.0, 1.0)
+B = B_computer(test_panels, 3.0, 1.0)
+solution = solve_system(Aij, B)
 println(" ")
