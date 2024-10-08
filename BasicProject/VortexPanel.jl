@@ -336,7 +336,8 @@ Solves system of equations for the Hess-Smith Panel Method - see Computational A
 - `panel_data::Panels` : struct with panel data
 
 # Returns:
-- `Cpi::Vector` : Pressure coefficient vector for each panel.
+- `Cd::Vector` : 2d Drag coefficient
+- `Cl::Vector` : 2d Lift coefficient
 """
 function Coefficient_force_computer(
     Vti,
@@ -366,18 +367,49 @@ function Coefficient_force_computer(
     return cd, cl
 end
 
+"""
+    Hess_Smith_Panel(
+    panel_data,
+    Vinf,
+    α,
+    chord_length
+    )
+
+Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
+
+# Arguments:
+- `panel_data::Panels` : struct with panel data
+- `Vinf::Float` : Free stream velocity
+- `α::Vector` : Angle of Attack (degrees)
+- `chord_length::Float` : length of airfoil chord
+
+# Returns:
+- `Cd::Vector` : 2d Drag coefficient
+- `Cl::Vector` : 2d Lift coefficient
+"""
+function Hess_Smith_Panel(
+    panel_data,
+    Vinf,
+    α,
+    chord_length
+)
+    Betaij = Beta_computer(panel_data)
+    Aij, rij, rij_1 = Aij_computer(panel_data, Betaij)
+    B = B_computer(panel_data, α, Vinf)
+    solution = solve_system(Aij, B)
+    Vti = Tangent_velocity_computer(panel_data, rij, rij_1, Betaij, solution, Vinf, α)
+    cd, cl = Coefficient_force_computer(Vti, Vinf, chord_length, panel_data)
+
+    return cd, cl
+end
+
 #Creates NACA coordinates using Airfoil AirfoilTools
 Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
 
 #call panel setup function
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
-Betaij = Beta_computer(test_panels)
-Aij, rij, rij_1 = Aij_computer(test_panels, Betaij)
-B = B_computer(test_panels, 0.0, 1.0)
-solution = solve_system(Aij, B)
-Vti = Tangent_velocity_computer(test_panels, rij, rij_1, Betaij, solution, 1.0, 0.0)
-cd, cl = Coefficient_force_computer(Vti, 1.0, 1.0, test_panels)
+cd, cl = Hess_Smith_Panel(test_panels, 1.0, 3.0, 1.0)
 println(cd)
 println(cl)
 println(" ")
