@@ -15,3 +15,11 @@ for a commit message
 Lastly,
 -git push origin head
 to push to the branch repository
+
+--Getting a new Repo/ branch--
+
+First clone the branch using:
+
+git clone "Repo link"
+
+Then to get 
