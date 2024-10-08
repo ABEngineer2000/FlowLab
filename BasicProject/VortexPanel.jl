@@ -73,7 +73,7 @@ function panel_setup(
         endpoints = vcat(endpoints, [[x[i + 1], z[i + 1]]])
         midpoints = vcat(midpoints, [[(x[i] + x[i + 1])/2 , (z[i] + z[i + 1])/2]])
         push!(l, sqrt((x[i + 1] - x[i])^2 + (z[i + 1] - z[i])^2))
-        push!(θ, asin((z[i + 1] - z[i])/2))
+        push!(θ, atan(z[i + 1] - z[i], x[i + 1] - x[i]))
     end
     #Get rid of the 0's that I put in to initialize the vectors I'm using
     splice!(ID, 1)
@@ -258,7 +258,7 @@ function solve_system(
     B
 )
     n = length(B)
-    solution = Matrix{Float64}(undef, n + 1, 1)
+    solution = Matrix{Float64}(undef, n, 1)
     solution = inv(Aij)*B
     return solution
 end
@@ -302,10 +302,9 @@ function Tangent_velocity_computer(
 
     #compute's tangent velocity at each of the panels see equation 2.237 in Computational Aerodynamics by Andrew Ning
     for i = 1:n
-        Vti[i] = Vinf*cos(Panel_data.theta[i] - α)
         for j = 1:n
-            Vti[i] = (Vti[i]
-            + (1 / (2*π))*q_λ_vector[j]*(
+            Vti[i] = (Vti[i] +
+            (1 / (2*π))*q_λ_vector[j]*(
                 βij[i,j]*sin(Panel_data.theta[i] - Panel_data.theta[j]) - log(ℯ, (rij_1[i,j] / rij[i,j]))*cos(Panel_data.theta[i] - Panel_data.theta[j])
             )
             + (q_λ_vector[n + 1] / (2*π))*(
@@ -313,9 +312,58 @@ function Tangent_velocity_computer(
             )
             )
         end
+        Vti[i] = Vti[i] + Vinf*cos(Panel_data.theta[i] - α)
     end
+    #println(Vti)
 
     return Vti
+end
+
+"""
+    Coefficient_force_computer(
+    Vti,
+    Vinf,
+    chord_length,
+    panel_data
+    )
+
+Solves system of equations for the Hess-Smith Panel Method - see Computational Aerodynamics by Andrew Ning equation 2.234
+
+# Arguments:
+- `Vti::Vector` : Tangent velocity at each panel - see Tangent_velocity_computer
+- `Vinf::Float` : Free stream velocity
+- `chord_length::Float` : length of airfoil chord
+- `panel_data::Panels` : struct with panel data
+
+# Returns:
+- `Cpi::Vector` : Pressure coefficient vector for each panel.
+"""
+function Coefficient_force_computer(
+    Vti,
+    Vinf,
+    chord_length,
+    panel_data
+)
+    #initialize vectors and variables
+    Cpi = Vector{Float64}(undef, length(Vti))
+    Pressure_i = [Vector{Float64}(undef, 2) for a in 1:length(Vti)]
+    sumx = 0.0
+    sumz = 0.0
+
+
+    #compute the pressure and force per unit length of each panel
+    for i = 1:length(Vti)
+        Cpi[i] = 1 - (Vti[i] / Vinf)^2 #see equation 2.238 in Computational Aerodyanmics by Andrew Ning
+        #println(Cpi[i])
+        Pressure_i[i][1] = (Cpi[i])*sin(panel_data.theta[i])*panel_data.Panel_length[i]
+        Pressure_i[i][2] = -(Cpi[i])*cos(panel_data.theta[i])*panel_data.Panel_length[i]
+        sumx = sumx + Pressure_i[i][1]
+        sumz = sumz + Pressure_i[i][2]
+    end
+    
+    cd = sumx / chord_length
+    cl = sumz / chord_length
+    return cd, cl
 end
 
 #Creates NACA coordinates using Airfoil AirfoilTools
@@ -326,7 +374,10 @@ x,z = naca4(Test1)
 test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 Betaij = Beta_computer(test_panels)
 Aij, rij, rij_1 = Aij_computer(test_panels, Betaij)
-B = B_computer(test_panels, 3.0, 1.0)
+B = B_computer(test_panels, 0.0, 1.0)
 solution = solve_system(Aij, B)
-Tangent_velocity_computer(test_panels, rij, rij_1, Betaij, solution, 1.0, 3.0)
+Vti = Tangent_velocity_computer(test_panels, rij, rij_1, Betaij, solution, 1.0, 0.0)
+cd, cl = Coefficient_force_computer(Vti, 1.0, 1.0, test_panels)
+println(cd)
+println(cl)
 println(" ")
