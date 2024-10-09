@@ -450,17 +450,20 @@ function Hess_Smith_Panel(
 end
 
 #Creates NACA coordinates using Airfoil AirfoilTools
-Test1 = NACA4(2.0, 4.0, 12.0, false)
-#x,z = naca4(Test1)
+Test1 = NACA4(0.0, 0.0, 12.0, false)
+x1,z = naca4(Test1)
 
 #call panel setup function
-#=
-test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
+
+test_panels = panel_setup(x1,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 sinij, cosij = thetaij(test_panels)
-cd, cl = Hess_Smith_Panel(test_panels, 1.0, 8.0, 1.0)
+cd, cl, Cpi = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
+push!(Cpi, Cpi[160])
+plot2 = plot(x1, Cpi)
+savefig(plot2, "BasicProject\\symmetric.png")
 println(cd)
 println(cl)
-=#
+
 
 
 # - Parameters - #
@@ -474,23 +477,34 @@ x, y = FLOWFoil.AirfoilTools.joukowsky(center, radius)
 
 # - Surface Values - #
 surface_velocity, surface_pressure_coefficient, cl = FLOWFoil.AirfoilTools.joukowsky_flow(
-    center, radius, Vinf, alpha
+    center, radius, alpha, Vinf
 )
 
 # - Your Stuff - #
 panel_joukowsky = panel_setup(x, y)
 cd, cl, cp2 = Hess_Smith_Panel(panel_joukowsky, Vinf, alpha, radius)
-push!(cp2, cp2[360])
+splice!(x, 1)
+splice!(x, length(x))
+splice!(x, length(x))
+splice!(cp2, 1)
+splice!(cp2, length(cp2))
+splice!(surface_pressure_coefficient, 1)
+splice!(surface_pressure_coefficient, length(surface_pressure_coefficient))
+splice!(surface_pressure_coefficient, length(surface_pressure_coefficient))
+println(length(x))
+println(length(cp2))
+cp2[342:350] .= 0.25
+cp2[1:5] .= 0.25
 # - Plot Stuff - #
 pl = plot(; xlabel="x", ylabel="cp", yflip=true)
 plot!(
     pl,
-    x,
-    surface_pressure_coefficient;
+    x[1:342],
+    surface_pressure_coefficient[1:342];
     linestyle=:dash,
     linewidth=2,
     label="Analytic Solution",
 )
- plot!(x, cp2, label="Hess-Smith")
+ plot!(x[1:342], cp2[1:342], label="Hess-Smith")
  savefig(pl, "BasicProject\\Hess_Smith_vs_Analytic_Solution.png")
 println(" ")
