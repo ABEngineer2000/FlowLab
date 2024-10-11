@@ -515,7 +515,7 @@ function grid_convergence_study(
     
     if animate_convergence == true
         anim = @animate for i = 1:l_n
-         plot_cl = scatter!([n[i]], [cl[i]], markercolor = "blue", markersize = 4, legend = false, xlims = (0.0, n[l_n]), ylims = (0.0, 7.0))
+         plot_cl = scatter!([n[i]], [cl[i]], markercolor = "blue", markersize = 4, legend = false, xlims = (0.0, n[l_n]), ylims = (0.0, 7.0), xlabel = "Number of Panels", ylabel = "Lift Coefficient", title = "NACA 1212 α = 4.0 degrees")
         end
         gif(anim, graph_output, fps = 15)
         plot() #reset the plot
