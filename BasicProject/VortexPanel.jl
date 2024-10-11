@@ -1,4 +1,6 @@
-using Plots, Printf, LinearAlgebra, DelimitedFiles, FLOWFoil
+using Plots, LinearAlgebra, DelimitedFiles
+
+import FLOWFoil.AirfoilTools
 
 using .AirfoilTools
 
@@ -429,8 +431,8 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 - `chord_length::Float` : length of airfoil chord
 
 # Returns:
-- `Cd::Vector` : 2d Drag coefficient
-- `Cl::Vector` : 2d Lift coefficient
+- `Cd::Float` : 2d Drag coefficient
+- `Cl::Float` : 2d Lift coefficient
 """
 function Hess_Smith_Panel(
     panel_data,
@@ -448,24 +450,105 @@ function Hess_Smith_Panel(
 
     return cd, cl, Cpi
 end
+"""
+    grid_convergence_study(
+    thickness,
+    max_camber_position,
+    max_number_panels
+    )
+
+Performs a grid convergence study on a NACA airfoil.
+
+# Arguments:
+- `thickness::Float` : max thickness of the airfoil as a percentage of the chord length
+- `max_camber::Float` : max camber as a percentage of the chord length
+- `max_camber_position::Float` : max camber position as a percentage of the chord length
+- `initial_number_panels::Int` : initial number of panels to be tested
+- `max_number_panels::Int` : max number of panels before the function stops iterating
+- `deltan::Int` : number of panels to add in between each iteration
+
+# Keyword Arguments:
+- `Vinf::Float = 1.0` : value of the free stream velocity
+- `α::Float = 0.0` : angle of attack in degrees
+- `chord_length::Float = 1.0` : length of the chord
+- `animate_convergence::Boolean = false` : if true then the function will output an animation to the desired file location
+- `graph_output::String = ""` : desired file location for the output animation gif
+
+# Returns:
+- `Cl::Array` : 2d Drag coefficient array for each amount of panels
+- `Cd::Array` : 2d Lift coefficient array for each amount of panels
+- `n::Array` : number of panels for each lift and drag coefficient comptued
+"""
+function grid_convergence_study(
+    thickness,
+    max_camber,
+    max_camber_position,
+    initial_number_panels,
+    max_number_panels,
+    deltan;
+    Vinf = 1.0,
+    α = 0.0,
+    chord_length = 1.0,
+    animate_convergence = false,
+    graph_output = ""
+)
+    #initialize vectors
+    maximum([0.0, 1.2])
+    l_n = round(Int, (max_number_panels - initial_number_panels) / deltan) + 1 #value of the length of number of panels Array
+    n = Array{Int64, 1}(undef, l_n) 
+    cl = Array{Float64, 1}(undef, l_n)
+    cd = similar(cl, l_n)
+    #Compute cl and cd for each number of panels
+    for i = 1:l_n
+        if i == 1
+            n[i] = initial_number_panels
+        else
+            n[i] = n[i - 1] + deltan
+        panels = NACA4(max_camber, max_camber_position, thickness, false)
+        x,z = naca4(panels, N = n[i])
+        panel_init = panel_setup(x, z)
+        cd[i], cl[i] = Hess_Smith_Panel(panel_init, Vinf, α, chord_length)
+        end
+    end
+    
+    
+    
+    if animate_convergence == true
+        anim = @animate for i = 1:l_n
+         plot_cl = scatter!([n[i]], [cl[i]], markercolor = "blue", markersize = 4, legend = false, xlims = (0.0, n[l_n]), ylims = (0.0, 7.0))
+        end
+        gif(anim, graph_output, fps = 15)
+        plot() #reset the plot
+    end
+    
+    return n, cl, cd
+end
+n ,cl, cd = grid_convergence_study(12.0, 1.2, 4.0, 160, 5000, 100, animate_convergence = true, graph_output = "BasicProject\\5000_panel_animation.gif")
+
+println(n, cl, cd)
 
 #Creates NACA coordinates using Airfoil AirfoilTools
+#=
+############################ Main Function Calls#####################
+
 Test1 = NACA4(0.0, 0.0, 12.0, false)
-x1,z = naca4(Test1)
+x,z = naca4(Test1)
 
 #call panel setup function
 
-test_panels = panel_setup(x1,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
+test_panels = panel_setup(x,z, graph = true, graph_filename = "BasicProject\\TestGraph.png")
 sinij, cosij = thetaij(test_panels)
 cd, cl, Cpi = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
 push!(Cpi, Cpi[160])
-plot2 = plot(x1, Cpi)
+plot2 = plot(x, Cpi)
 savefig(plot2, "BasicProject\\symmetric.png")
 println(cd)
 println(cl)
+##########################################
+=#
 
-
-
+#comparing with joukowsky_flow
+#=
 # - Parameters - #
 center = [-0.1; 0.1]
 radius = 1.0
@@ -507,4 +590,5 @@ plot!(
 )
  plot!(x[1:342], cp2[1:342], label="Hess-Smith")
  savefig(pl, "BasicProject\\Hess_Smith_vs_Analytic_Solution.png")
+ =#
 println(" ")
