@@ -523,9 +523,10 @@ function grid_convergence_study(
     
     return n, cl, cd
 end
-n ,cl, cd = grid_convergence_study(12.0, 1.2, 4.0, 160, 5000, 100, animate_convergence = true, graph_output = "BasicProject\\5000_panel_animation.gif")
 
-println(n, cl, cd)
+#n ,cl, cd = grid_convergence_study(12.0, 1.2, 4.0, 160, 5000, 100, animate_convergence = true, graph_output = "BasicProject\\5000_panel_animation.gif")
+
+#println(n, cl, cd)
 
 #Creates NACA coordinates using Airfoil AirfoilTools
 #=
