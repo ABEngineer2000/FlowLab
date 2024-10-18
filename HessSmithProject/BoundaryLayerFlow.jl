@@ -19,7 +19,6 @@ equation 3.37 in computational Aerodynamics
 
 The panel method will then be re evaulated using the new normal flow boundary condition
 Lift and drag values will then be predicted from these new panels.
-
 =#
 
 """
@@ -39,12 +38,12 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 - `ν::Float = 0.0000148` : Kinematic viscosity of fluid (cSt), automatically set to kinematic viscosity of air at 15 degrees celsius
 
 # Returns:
-- `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel)
+- `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel). Note that it will return 0's for panels in the turbulent flow region
 """
 function compute_laminar_delta(
     panel_data,
     Ve;
-    ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air (or fluid moving around body). It will change depending on the temperature
+    ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air (or fluid moving around body). It will change depending on the temperature and fluid
 )
     #initialize values and vectors
     n = length(Ve)
@@ -125,12 +124,31 @@ function compute_laminar_delta(
     return δ_star
 end
 
+function compute_turbulent_delta(
+    panel_data,
+    Ve,
+    δ_star;
+    ν = 0.0000148
+)
+    #determine number of panels which need boundary layer thickness
+    n = 0 #n represents number of panels which need boundary layer thickness to be solved for
+    n1 = length(δ_star)
+    for i = 1:n1
+        if δ_star[i] == 0.0
+            n = n + 1
+        end
+    end
+    
+
+end
+
 #######Main Function Calls######
 Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
 test_panels = panel_setup(x,z)
 cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
 δ_star = compute_laminar_delta(test_panels, Vti)
+compute_turbulent_delta(test_panels, Vti, δ_star)
 
 
 ################################
