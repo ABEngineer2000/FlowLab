@@ -39,6 +39,7 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 
 # Returns:
 - `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel). Note that it will return 0's for panels in the turbulent flow region
+- `dve_dx::Vector` : Exit velocity derivatives for each panel
 """
 function compute_laminar_delta(
     panel_data,
@@ -121,24 +122,35 @@ function compute_laminar_delta(
         end
     end
 
-    return δ_star
+    return δ_star, dve_dx
 end
 
 function compute_turbulent_delta(
     panel_data,
     Ve,
-    δ_star;
+    δ_star,
+    dve_dx;
     ν = 0.0000148
 )
     #determine number of panels which need boundary layer thickness
-    n = 0 #n represents number of panels which need boundary layer thickness to be solved for
-    n1 = length(δ_star)
-    for i = 1:n1
+    n = length(δ_star)
+    for i = 1:n
+        #if δ_star[i] is 0 then it means it's in the turbulent regime and will be solved for
         if δ_star[i] == 0.0
-            n = n + 1
+            #solve equation 3.119 and 3.120 for H1 and θ coupled
+            #assume H1 is < 5.3, if it doesn't come out to that, resolve equations assuming H1 is >= to 5.3
+                
+                #check if H1 is < 3.3
+                
+                #if it is then flag that the flow might be seperating
+
+            #Solve for H using H1
+
+            #solve equation 3.120 for θ
+
+            #compute new δ_star using H = (δ_star / θ)
         end
     end
-    
 
 end
 
@@ -147,8 +159,8 @@ Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
 test_panels = panel_setup(x,z)
 cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
-δ_star = compute_laminar_delta(test_panels, Vti)
-compute_turbulent_delta(test_panels, Vti, δ_star)
+δ_star, dvti_dx = compute_laminar_delta(test_panels, Vti)
+compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx)
 
 
 ################################
