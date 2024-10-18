@@ -50,7 +50,7 @@ Creates panels from points on an airfoil
 - `graph_filename::String = ""` : If graph is true, graph_filename is a string containing the desired file location for the graph
 
 # Returns:
-- `panel_data::Panels` : Struct with each panel ID, left, right, and midpoint coordinates. Also includes length coordinates and angle coordinates relative to the x axis.
+- `panel_data::NT` : Named tuple with each panel ID, left, right, and midpoint coordinates. Also includes length coordinates and angle coordinates relative to the x axis.
 """
 function panel_setup(
     x,
@@ -107,29 +107,29 @@ end
 
 """
     Beta_computer(
-    Panel_data
+    panel_data
     )
 
 Computes Betaij values for an airfoil
 
 # Arguments:
-- `Panel_data::Panels` : Panels struct for the given airfoil
+- `panel_data::NT` : Named tuple with data for the given airfoil
 
 # Returns:
-- `Betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
+- `betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
 """
 function Beta_computer(
     panel_data
 )
-    Betaij = Array{Float64, 2}(undef, length(panel_data.panel_ID), length(panel_data.panel_ID)) #create n x n Matrix
+    betaij = Array{Float64, 2}(undef, length(panel_data.panel_ID), length(panel_data.panel_ID)) #create n x n Matrix
 
     #using equation 2.212 this for loop computes βij
     for i = 1:length(panel_data.panel_ID)
         for j = 1:length(panel_data.panel_ID)
             if i == j
-                Betaij[i,j] = π*1
+                betaij[i,j] = π*1
             else
-                Betaij[i,j] = atan(
+                betaij[i,j] = atan(
                         ((panel_data.panel_start_points[j][1] - panel_data.panel_mid_points[i][1])*(panel_data.panel_end_points[j][2] - panel_data.panel_mid_points[i][2])
                          - (panel_data.panel_start_points[j][2] - panel_data.panel_mid_points[i][2])*(panel_data.panel_end_points[j][1] - panel_data.panel_mid_points[i][1]))
                          ,
@@ -139,20 +139,20 @@ function Beta_computer(
             end
         end
     end
-    return Betaij
+    return betaij
 end
 
 """
     Aij_computer(
-    Panel_data,
-    Betaij
+    panel_data,
+    betaij
     )
 
 Computes Aij values from an airfoil
 
 # Arguments:
-- `Panel_data::Panels` : Panels struct for the given airfoil
-- `Betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
+- `panel_data::NT` : Named tuple with information for the given airfoil
+- `betaij::Array` : Array with βij values, see Computational Aerodynamics by Andrew Ning equation 2.212
 - `sinij::Array` : sinij Array - see thetaij
 - `cosij::Array` : cosij Array - see thetaij
 
@@ -215,20 +215,20 @@ end
 
 """
     B_computer(
-    Panel_data,
+    panel_data,
     α,
-    Vinf
+    vinf
     )
 
-Computes B values from an airfoil see Computational Aerodynamics by Andrew Ning equations 2.233 and 2.232
+Computes b values from an airfoil see Computational Aerodynamics by Andrew Ning equations 2.233 and 2.232
 
 # Arguments:
-- `Panel_data::Panels` : Panels struct for the given airfoil
+- `panel_data::NT` : Named tuple with information for the given airfoil
 - `α::Float` : User specified angle of attack in degrees
-- `Vinf::Float` : User specified free streamm velocity relative to the airfoil chord length
+- `vinf::Float` : User specified free streamm velocity relative to the airfoil chord length
 
 # Returns:
-- `B::Matrix` : Matrix with B values
+- `b::Matrix` : Matrix with B values
 """
 function B_computer(
     panel_data,
@@ -253,14 +253,14 @@ end
 """
     solve_system(
     Aij,
-    B
+    b
     )
 
 Solves system of equations for the Hess-Smith Panel Method - see Computational Aerodynamics by Andrew Ning equation 2.234
 
 # Arguments:
 - `Aij::Matrix` : Aij Matrix - see Aij_computer
-- `B::Matrix` : B values - see B_computer
+- `b::Matrix` : B values - see B_computer
 
 # Returns:
 - `solution::Matrix` : n + 1 x 1 Matrix where 1 through n rows are the source strengths and the n + 1 row is the vortex strength
@@ -277,7 +277,7 @@ end
 
 """
     Tangent_Velocity_computer(
-    Panel_data,
+    panel_data,
     Aij,
     βij,
     q_λ_vector,
@@ -288,18 +288,18 @@ end
 Computes the tangent velocity at the control point of each of the panels
 
 # Arguments:
-- `Panel_data::Panels` : Panel struct containing panel data
+- `panel_data::NT` : Named tuple with data on the airfoil and its panels
 - `rij::Matrix` : rij - see Aij_computer
 - `rij_1::Matrix` : rij_1 - see Aij_computer
 - `βij::Matrix` : βij Matrix - see Beta_computer
 - `sinij::Array` : sinij Array - see thetaij
 - `cosij::Array` : cosij Array - see thetaij
 - `q_λ_vector::Matrix` : Solution vector - see solve_system
-- `Vinf::Float` : Free stream velocity relative to the airfoil chord length
+- `vinf::Float` : Free stream velocity relative to the airfoil chord length
 - `α::Float` : Angle of attack in degrees
 
 # Returns:
-- `Vti::Vector` : n length Vector which holds the value of the tangent velocity at the control point for each panel
+- `vti::Vector` : n length Vector which holds the value of the tangent velocity at the control point for each panel
 """
 function Tangent_velocity_computer(
     panel_data,
@@ -365,8 +365,8 @@ end
 
 """
     Coefficient_force_computer(
-    Vti,
-    Vinf,
+    vti,
+    vinf,
     chord_length,
     panel_data
     )
@@ -374,14 +374,14 @@ end
 Solves system of equations for the Hess-Smith Panel Method - see Computational Aerodynamics by Andrew Ning equation 2.234
 
 # Arguments:
-- `Vti::Vector` : Tangent velocity at each panel - see Tangent_velocity_computer
-- `Vinf::Float` : Free stream velocity
-- `chord_length::Float` : length of airfoil chord
-- `panel_data::Panels` : struct with panel data
+- `vti::Vector` : Tangent velocity at each panel - see Tangent_velocity_computer
+- `vinf::Float` : Free stream velocity
+- `chord_length::Float` : Length of airfoil chord
+- `panel_data::NT` : Named tuple with panel data
 
 # Returns:
-- `Cd::Vector` : 2d Drag coefficient
-- `Cl::Vector` : 2d Lift coefficient
+- `cd::Vector` : 2d Drag coefficient
+- `cl::Vector` : 2d Lift coefficient
 """
 function Coefficient_force_computer(
     vti,
@@ -414,7 +414,7 @@ end
 """
     Hess_Smith_Panel(
     panel_data,
-    Vinf,
+    vinf,
     α,
     chord_length
     )
@@ -422,16 +422,16 @@ end
 Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 
 # Arguments:
-- `panel_data::Panels` : Struct with panel data
-- `Vinf::Float` : Free stream velocity
+- `panel_data::NT` : Named tuple with panel data
+- `vinf::Float` : Free stream velocity
 - `α::Vector` : Angle of Attack (degrees)
 - `chord_length::Float` : length of airfoil chord
 
 # Returns:
-- `Cd::Float` : 2d Drag coefficient
-- `Cl::Float` : 2d Lift coefficient
-- `Cpi::Vector` : Pressure coefficients for each panel
-- `Vti::Float` : Tangent velocity for each panel
+- `cd::Float` : 2d Drag coefficient
+- `cl::Float` : 2d Lift coefficient
+- `cpi::Vector` : Pressure coefficients for each panel
+- `vti::Float` : Tangent velocity for each panel
 """
 function Hess_Smith_Panel(
     panel_data,
@@ -452,8 +452,16 @@ end
 """
     grid_convergence_study(
     thickness,
+    max_camber,
     max_camber_position,
-    max_number_panels
+    initial_number_panels,
+    max_number_panels,
+    deltan;
+    vinf = 1.0,
+    α = 0.0,
+    chord_length = 1.0,
+    animate_convergence = false,
+    graph_output = ""
     )
 
 Performs a grid convergence study on a NACA airfoil.
@@ -467,15 +475,15 @@ Performs a grid convergence study on a NACA airfoil.
 - `deltan::Int` : number of panels to add in between each iteration
 
 # Keyword Arguments:
-- `Vinf::Float = 1.0` : value of the free stream velocity
+- `vinf::Float = 1.0` : value of the free stream velocity
 - `α::Float = 0.0` : angle of attack in degrees
 - `chord_length::Float = 1.0` : length of the chord
 - `animate_convergence::Boolean = false` : if true then the function will output an animation to the desired file location
 - `graph_output::String = ""` : desired file location for the output animation gif
 
 # Returns:
-- `Cl::Array` : 2d Drag coefficient array for each amount of panels
-- `Cd::Array` : 2d Lift coefficient array for each amount of panels
+- `cl::Array` : 2d Drag coefficient array for each amount of panels
+- `cd::Array` : 2d Lift coefficient array for each amount of panels
 - `n::Array` : number of panels for each lift and drag coefficient comptued
 """
 function grid_convergence_study(
@@ -485,7 +493,7 @@ function grid_convergence_study(
     initial_number_panels,
     max_number_panels,
     deltan;
-    Vinf = 1.0,
+    vinf = 1.0,
     α = 0.0,
     chord_length = 1.0,
     animate_convergence = false,
@@ -506,7 +514,7 @@ function grid_convergence_study(
         panels = NACA4(max_camber, max_camber_position, thickness, false)
         x,z = naca4(panels, N = n[i])
         panel_init = panel_setup(x, z)
-        cd[i], cl[i] = Hess_Smith_Panel(panel_init, Vinf, α, chord_length)
+        cd[i], cl[i] = Hess_Smith_Panel(panel_init, vinf, α, chord_length)
         end
     end
     
