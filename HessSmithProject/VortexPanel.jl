@@ -19,18 +19,7 @@ using .AirfoilTools
         - Compute the Lift and drag coefficient by adding all the forces together vectorally to get the total lift and drag using the equation for lift and drag coefficient to get said coefficients.
 
 =#
-#=
-mutable struct Panels
-        Panel_ID::Vector{Int64}
-        Panel_start_points::Vector{Vector{Float64}}
-        Panel_end_points::Vector{Vector{Float64}}
-        Panel_mid_points::Vector{Vector{Float64}}
-        Panel_length::Vector{Float64}
-        theta::Vector{Float64}
-        sin_theta::Vector{Float64}
-        cos_theta::Vector{Float64}
-end
-=#
+
 """
     panel_setup(
     x,
@@ -547,7 +536,6 @@ x,z = naca4(Test1)
 test_panels = panel_setup(x,z, graph = false, graph_filename = "BasicProject\\TestGraph.png")
 sinij, cosij = thetaij(test_panels)
 cd, cl, Cpi = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
-println(cl)
 #=
 push!(Cpi, Cpi[160])
 plot2 = plot(x, Cpi)
@@ -557,7 +545,7 @@ println(cl)
 =#
 ##########################################
 
-
+#=
 #comparing with joukowsky_flow
 
 # - Parameters - #
@@ -601,5 +589,6 @@ plot!(
 )
  plot!(x[1:342], cp2[1:342], label="Hess-Smith")
  savefig(pl, "HessSmithProject\\Hess_Smith_vs_Analytic_Solution2.png")
- 
+ =#
+
 println(" ")
