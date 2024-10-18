@@ -32,7 +32,8 @@ end
 
 """
     panel_setup(
-    data_file;
+    x,
+    z;
     graph = false,
     graph_filename = ""
     )
@@ -425,7 +426,7 @@ end
 Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 
 # Arguments:
-- `panel_data::Panels` : struct with panel data
+- `panel_data::Panels` : Struct with panel data
 - `Vinf::Float` : Free stream velocity
 - `α::Vector` : Angle of Attack (degrees)
 - `chord_length::Float` : length of airfoil chord
@@ -433,6 +434,8 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 # Returns:
 - `Cd::Float` : 2d Drag coefficient
 - `Cl::Float` : 2d Lift coefficient
+- `Cpi::Vector` : Pressure coefficients for each panel
+- `Vti::Float` : Tangent velocity for each panel
 """
 function Hess_Smith_Panel(
     panel_data,
@@ -448,7 +451,7 @@ function Hess_Smith_Panel(
     Vti = Tangent_velocity_computer(panel_data, rij, rij_1, Betaij, sinij, cosij, solution, Vinf, α)
     cd, cl, Cpi = Coefficient_force_computer(Vti, Vinf, chord_length, panel_data)
 
-    return cd, cl, Cpi
+    return cd, cl, Cpi, Vti
 end
 """
     grid_convergence_study(

@@ -22,9 +22,27 @@ Lift and drag values will then be predicted from these new panels.
 
 =#
 
+"""
+    compute_laminar_delta(
+    panel_data,
+    Ve;
+    ν = 0.0000148
+    )
 
+Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
+
+# Arguments:
+- `panel_data::Panels` : Struct with panel data - note length measurements must be in meters
+- `Ve::Vector` : Exit velocity or velocity at the edge of the boundary layer (m / s)
+
+# Keyword Arguments:
+- `ν::Float = 0.0000148` : Kinematic viscosity of fluid (cSt), automatically set to kinematic viscosity of air at 15 degrees celsius
+
+# Returns:
+- `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel)
+"""
 function compute_laminar_delta(
-    x,
+    panel_data,
     Ve;
     ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air (or fluid moving around body). It will change depending on the temperature
 )
@@ -33,43 +51,88 @@ function compute_laminar_delta(
     dve_dx = Vector{Float64}(undef, n)
     θ = similar(dve_dx, n)
     δ_star = similar(dve_dx, n)
+    h = 0.0
+    exit = false
 
     #Compute dve_dx for each panel
     #for now I will be taking simple derivatives
     for i = 1:n
         if i == 1
-            h = x.Panel_mid_points[i + 1][1] - x.Panel_mid_points[i][1]
+            h = panel_data.Panel_mid_points[i + 1][1] - panel_data.Panel_mid_points[i][1]
             dve_dx[i] = (Ve[i + 1] - Ve[i]) / h #forward derivative
-        elseif i == n
-            h = (x.Panel_mid_points[i + 1] - x.Panel_mid_points[i - 1])
-            dve_dx[i] = (Ve[i + 1] - Ve[i - 1]) / h
-            #central derivative
+        elseif i < n && i > 1
+            h = (panel_data.Panel_mid_points[i + 1][1] - panel_data.Panel_mid_points[i - 1][1])
+           dve_dx[i] = 1*(Ve[i + 1] - Ve[i - 1]) / h  #central derivative
         else
-            h = x.Panel_mid_points[i] - x.Panel_mid_points[i - 1]
-            dve_dx[i] = (Ve[i] - Ve[i]) / h
+            h = panel_data.Panel_mid_points[i][1] - panel_data.Panel_mid_points[i - 1][1]
+           dve_dx[i] = (Ve[i] - Ve[i - 1]) / h #backwards derivative
         end
     end
 
     #compute initial condition using equation 3.100
     θ[1] = sqrt(0.075*ν / dve_dx[1])
     
-    #solve equation 3.95 numerically for θ, likely using the classic Runga-Kutta method
+    #solve equation 3.95 numerically for θ, likely using the classic Runga-Kutta method (fourth order Runga-Kutta)
     for i = 1:n - 1
-        h = x.Panel_mid_points[i + 1][1] - x.Panel_mid_points[i][1]
-        k1 = (0.225*ν) / (Ve[i]*θ[i]) - (3*θ_0 / Ve[i])*dve_dx[i]
-        k2 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k1*h)) - (3*(θ[i] + 0.5*k1*h) / Ve[i])*dVe_dx[i]
-        k3 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k2*h)) - (3*(θ[i] + 0.5*k2*h) / Ve[i])*dVe_dx[i]
-        k4 = (0.225*ν) / (Ve[i]*(θ[i] + k3*h)) - (3*(θ[i] + k3*h) / Ve[i])*dVe_dx[i]
+        h = panel_data.Panel_mid_points[i + 1][1] - panel_data.Panel_mid_points[i][1]
+        k1 = (0.225*ν) / (Ve[i]*θ[i]) - (3*θ[i] / Ve[i])*dve_dx[i]
+        k2 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k1*h)) - (3*(θ[i] + 0.5*k1*h) / Ve[i])*dve_dx[i]
+        k3 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k2*h)) - (3*(θ[i] + 0.5*k2*h) / Ve[i])*dve_dx[i]
+        k4 = (0.225*ν) / (Ve[i]*(θ[i] + k3*h)) - (3*(θ[i] + k3*h) / Ve[i])*dve_dx[i]
         θ[i + 1] = θ[i] + (1/6)*(k1 + 2*k2 + 2*k3 + k4)*h
+
+        #compute λ
+        λ = ((θ[i]^2) / ν)*dve_dx[i] #equation 3.88
+        if λ <= -0.1
+            exit = true
+            for j = i:n
+                δ_star[j] = 0.0
+            end
+            i = n - 1
+        end
+        if exit == false
+            #compute H using equations 3.96 and 3.97
+            if λ >= 0
+                H = 2.61 - 3.75*λ-5.24*λ^2
+            else
+                H = 2.088 + (0.0731) / (0.14 + λ)
+            end
+
+            #compute δ* from H and θ (page 98 has the equation that relates the three variables)
+                δ_star[i] = H*θ[i]
+                if i == n - 1
+                    λ = ((θ[i + 1]^2) / ν)*dve_dx[i + 1]
+                    if λ <= -0.1
+                        exit == true
+                        for j = i:n
+                            δ_star[j] = 0.0
+                        end
+                        i = n - 1
+                    end
+                    if exit == false
+                        if λ >= 0
+                            H = 2.61 - 3.75*λ-5.24*λ^2
+                        else
+                            H = 2.088 + (0.0731) / (0.14 + λ)
+                        end
+                        #output δ* for each panel
+                        δ_star[i + 1] = H*θ[i + 1]
+                    end
+                end
+        end
     end
-
-    #compute δ* from H and θ (page 98 has the equation that relates the three variables)
-
-    #output δ* for each panel
 
     return δ_star
 end
 
+#######Main Function Calls######
+Test1 = NACA4(2.0, 4.0, 12.0, false)
+x,z = naca4(Test1)
+test_panels = panel_setup(x,z)
+cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
+δ_star = compute_laminar_delta(test_panels, Vti)
 
+
+################################
 
 println("")
