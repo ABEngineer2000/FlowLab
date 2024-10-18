@@ -1,8 +1,9 @@
-using DelimitedFiles
+using DelimitedFiles, FiniteDifferences
 
 import FLOWFoil.AirfoilTools
 
 using .AirfoilTools
+include("VortexPanel.jl") #include Vortex Panel (Hess Smith Panel method) for input data
 
 ##########BoundaryLayerFlow Overview##########
 #=
@@ -24,7 +25,7 @@ Lift and drag values will then be predicted from these new panels.
 
 function compute_laminar_delta(
     Ve;
-    ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air. It will change depending on the temperature
+    ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air (or fluid moving around body). It will change depending on the temperature
 )
     #initialize values and vectors
     n = length(Ve)
@@ -34,9 +35,16 @@ function compute_laminar_delta(
 
     #Compute dve_dx for each panel
     for i = 1:n
+        if i == 1
+            
+        elseif i == n
 
+        else
+
+        end
     end
     #compute initial condition using equation 3.100
+    θ_0 = sqrt(0.075*ν / dve_dx[1])
     
     #solve equation 3.95 numerically for θ, likely using the classic Runga-Kutta method
 
@@ -46,5 +54,6 @@ function compute_laminar_delta(
 
     return δ_star
 end
+
 
 println("")
