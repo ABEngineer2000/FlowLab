@@ -31,7 +31,7 @@ Lift and drag values will then be predicted from these new panels.
 Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 
 # Arguments:
-- `panel_data::Panels` : Struct with panel data - note length measurements must be in meters
+- `panel_data::NT` : Named tuple with panel data - note length measurements must be in meters
 - `Ve::Vector` : Exit velocity or velocity at the edge of the boundary layer (m / s)
 
 # Keyword Arguments:
@@ -40,6 +40,8 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 # Returns:
 - `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel). Note that it will return 0's for panels in the turbulent flow region
 - `dve_dx::Vector` : Exit velocity derivatives for each panel
+- `θ::Vector` : Boundary layer thickness (m) for each panel
+- `H::Float` : H for the last panel in the laminar section, it is outputted to be used for the initial condition of the turbulent flow regime
 """
 function compute_laminar_delta(
     panel_data,
@@ -58,23 +60,23 @@ function compute_laminar_delta(
     #for now I will be taking simple derivatives
     for i = 1:n
         if i == 1
-            h = panel_data.Panel_mid_points[i + 1][1] - panel_data.Panel_mid_points[i][1]
+            h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
             dve_dx[i] = (Ve[i + 1] - Ve[i]) / h #forward derivative
         elseif i < n && i > 1
-            h = (panel_data.Panel_mid_points[i + 1][1] - panel_data.Panel_mid_points[i - 1][1])
+            h = (panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i - 1][1])
            dve_dx[i] = 1*(Ve[i + 1] - Ve[i - 1]) / h  #central derivative
         else
-            h = panel_data.Panel_mid_points[i][1] - panel_data.Panel_mid_points[i - 1][1]
+            h = panel_data.panel_mid_points[i][1] - panel_data.panel_mid_points[i - 1][1]
            dve_dx[i] = (Ve[i] - Ve[i - 1]) / h #backwards derivative
         end
     end
 
     #compute initial condition using equation 3.100
     θ[1] = sqrt(0.075*ν / dve_dx[1])
-    
+    H = 0.0
     #solve equation 3.95 numerically for θ, likely using the classic Runga-Kutta method (fourth order Runga-Kutta)
     for i = 1:n - 1
-        h = panel_data.Panel_mid_points[i + 1][1] - panel_data.Panel_mid_points[i][1]
+        h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
         k1 = (0.225*ν) / (Ve[i]*θ[i]) - (3*θ[i] / Ve[i])*dve_dx[i]
         k2 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k1*h)) - (3*(θ[i] + 0.5*k1*h) / Ve[i])*dve_dx[i]
         k3 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k2*h)) - (3*(θ[i] + 0.5*k2*h) / Ve[i])*dve_dx[i]
@@ -97,6 +99,7 @@ function compute_laminar_delta(
             else
                 H = 2.088 + (0.0731) / (0.14 + λ)
             end
+            
 
             #compute δ* from H and θ (page 98 has the equation that relates the three variables)
                 δ_star[i] = H*θ[i]
@@ -117,19 +120,22 @@ function compute_laminar_delta(
                         end
                         #output δ* for each panel
                         δ_star[i + 1] = H*θ[i + 1]
+                        println(H)
                     end
                 end
-        end
+            end
     end
-
-    return δ_star, dve_dx
+    return δ_star, dve_dx, θ, H
 end
+
 
 function compute_turbulent_delta(
     panel_data,
-    Ve,
+    ve,
     δ_star,
-    dve_dx;
+    dve_dx,
+    θ,
+    H;
     ν = 0.0000148
 )
     #determine number of panels which need boundary layer thickness
@@ -138,8 +144,17 @@ function compute_turbulent_delta(
         #if δ_star[i] is 0 then it means it's in the turbulent regime and will be solved for
         if δ_star[i] == 0.0
             #solve equation 3.119 and 3.120 for H1 and θ coupled
-            #assume H1 is < 5.3, if it doesn't come out to that, resolve equations assuming H1 is >= to 5.3
-                
+            
+            #solve for H1 equation 3.117
+            if H <= 1.6
+                H1 = 0.8234*(H-1.1)^(-1.287) + 3.3
+            else
+                H1 = 1.5501*(H-0.6778)^(-3.064) + 3.3
+            end
+            
+            cf = (0.246*10^(-0.678*H))*((ve[i]*θ[i]) / ν)^(-0.268) #equation 3.122
+            k11 = (0.0306 / θ[i])*(H1 -3)^(-0.6169) - dve_dx[i]*(H1 / ve[i]) - ((cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2))*(H1 / θ[i])
+            k12 = (cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2)
                 #check if H1 is < 3.3
                 
                 #if it is then flag that the flow might be seperating
@@ -154,13 +169,14 @@ function compute_turbulent_delta(
 
 end
 
-#######Main Function Calls######
+####### Main Function Calls ######
 Test1 = NACA4(2.0, 4.0, 12.0, false)
 x,z = naca4(Test1)
 test_panels = panel_setup(x,z)
 cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
-δ_star, dvti_dx = compute_laminar_delta(test_panels, Vti)
-compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx)
+δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, Vti)
+println(H)
+#compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx, θ, H)
 
 
 ################################

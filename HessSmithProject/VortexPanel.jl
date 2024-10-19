@@ -80,7 +80,7 @@ function panel_setup(
 
     #create the struct
     panel_data = (panel_ID = ID, panel_start_points = startpoints, panel_end_points = endpoints, panel_mid_points = midpoints,
-     panel_length = l, theta = θ, sin_theta = sin_t, cos_theta = cos_t)
+    panel_length = l, theta = θ, sin_theta = sin_t, cos_theta = cos_t)
 
     #if graph is set to true then plot the airfoil
     if graph == true
@@ -234,7 +234,7 @@ function B_computer(
     end
 
     #compute n +1 row
-    b[n + 1,1] = -2*π*Vinf*(panel_data.cos_theta[1]*cos(α) + panel_data.sin_theta[1]*sin(α) + panel_data.cos_theta[n]*cos(α) + panel_data.sin_theta[n]*sin(α))            #(cos(Panel_data.theta[1] - α) + cos(Panel_data.theta[n]  - α))
+    b[n + 1,1] = -2*π*vinf*(panel_data.cos_theta[1]*cos(α) + panel_data.sin_theta[1]*sin(α) + panel_data.cos_theta[n]*cos(α) + panel_data.sin_theta[n]*sin(α))            #(cos(Panel_data.theta[1] - α) + cos(Panel_data.theta[n]  - α))
     
     return b
 end
