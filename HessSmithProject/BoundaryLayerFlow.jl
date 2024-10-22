@@ -1,4 +1,4 @@
-using DelimitedFiles, ForwardDiff, Roots
+using DelimitedFiles, ForwardDiff
 
 import FLOWFoil.AirfoilTools
 
