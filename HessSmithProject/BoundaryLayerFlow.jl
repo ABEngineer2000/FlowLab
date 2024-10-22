@@ -114,6 +114,7 @@ function compute_laminar_delta(
             
             if 2.1 < H < 2.8 && abs(log10(re[i])) > -40.557 + 64.8066*H - 26.7538*H^2 + 3.3819*H^3 #check if transition occurs - equation 3.129
                 δ_star[i] = 0.0
+                exit = true
             else
                 #compute δ* from H and θ (page 98 has the equation that relates the three variables)
                 δ_star[i] = H*θ[i]
