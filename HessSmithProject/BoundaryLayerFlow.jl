@@ -90,20 +90,35 @@ function compute_laminar_delta(
         #compute λ
         λ = ((θ[i]^2) / ν)*dve_dx[i] #equation 3.88
             #compute H using equations 3.96 and 3.97
-        if λ >= 0
-            H = 2.61 - 3.75*λ-5.24*λ^2
+
+        if exit == true
+            λ = -0.2
+            i = n - 1
+        end
+
+        if λ > 0. 1
+            λ = 0.1
+            exit = false
+        elseif λ <= -0.1
+            exit = true
         else
-            H = 2.088 + (0.0731) / (0.14 + λ)
+            exit = false
         end
         
-        if 2.1 < H < 2.8 && abs(log10(re[i])) > -40.557 + 64.8066*H - 26.7538*H^2 + 3.3819*H^3 #check if transition occurs - equation 3.129
-            δ_star[i] = 0.0
-        else
-            #compute δ* from H and θ (page 98 has the equation that relates the three variables)
-            δ_star[i] = H*θ[i]
-            if i == n - 1
-                λ = ((θ[i + 1]^2) / ν)*dve_dx[i + 1]
-                if exit == false
+        if exit == false
+            if λ >= 0
+                H = 2.61 - 3.75*λ-5.24*λ^2
+            else
+                H = 2.088 + (0.0731) / (0.14 + λ)
+            end
+            
+            if 2.1 < H < 2.8 && abs(log10(re[i])) > -40.557 + 64.8066*H - 26.7538*H^2 + 3.3819*H^3 #check if transition occurs - equation 3.129
+                δ_star[i] = 0.0
+            else
+                #compute δ* from H and θ (page 98 has the equation that relates the three variables)
+                δ_star[i] = H*θ[i]
+                if i == n - 1
+                    λ = ((θ[i + 1]^2) / ν)*dve_dx[i + 1]
                     if λ >= 0
                         H = 2.61 - 3.75*λ-5.24*λ^2
                     else
@@ -112,6 +127,11 @@ function compute_laminar_delta(
                     #output δ* for each panel
                     δ_star[i + 1] = H*θ[i + 1]
                 end
+            end
+
+        else
+            for j = i:n
+                δ_star[j] = 0.0
             end
         end
     end
@@ -167,7 +187,7 @@ test_panels = panel_setup(x,z)
 cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
 δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, Vti)
 #compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx, θ, H)
-#println(δ_star)
+println(δ_star)
 
 ################################
 
