@@ -1,4 +1,4 @@
-using DelimitedFiles, ForwardDiff
+using DelimitedFiles, ForwardDiff, Roots
 
 import FLOWFoil.AirfoilTools
 
@@ -45,29 +45,33 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 """
 function compute_laminar_delta(
     panel_data,
-    Ve;
+    ve;
     ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air (or fluid moving around body). It will change depending on the temperature and fluid
 )
     #initialize values and vectors
-    n = length(Ve)
+    n = length(ve)
     dve_dx = Vector{Float64}(undef, n)
     θ = similar(dve_dx, n)
     δ_star = similar(dve_dx, n)
     h = 0.0
     exit = false
+    re = similar(θ)
 
     #Compute dve_dx for each panel
     #for now I will be taking simple derivatives
     for i = 1:n
         if i == 1
+            re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
             h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
-            dve_dx[i] = (Ve[i + 1] - Ve[i]) / h #forward derivative
+            dve_dx[i] = (ve[i + 1] - ve[i]) / h #forward derivative
         elseif i < n && i > 1
+            re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
             h = (panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i - 1][1])
-           dve_dx[i] = 1*(Ve[i + 1] - Ve[i - 1]) / h  #central derivative
+           dve_dx[i] = 1*(ve[i + 1] - ve[i - 1]) / h  #central derivative
         else
+            re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
             h = panel_data.panel_mid_points[i][1] - panel_data.panel_mid_points[i - 1][1]
-           dve_dx[i] = (Ve[i] - Ve[i - 1]) / h #backwards derivative
+           dve_dx[i] = (ve[i] - ve[i - 1]) / h #backwards derivative
         end
     end
 
@@ -77,53 +81,39 @@ function compute_laminar_delta(
     #solve equation 3.95 numerically for θ, likely using the classic Runga-Kutta method (fourth order Runga-Kutta)
     for i = 1:n - 1
         h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
-        k1 = (0.225*ν) / (Ve[i]*θ[i]) - (3*θ[i] / Ve[i])*dve_dx[i]
-        k2 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k1*h)) - (3*(θ[i] + 0.5*k1*h) / Ve[i])*dve_dx[i]
-        k3 = (0.225*ν) / (Ve[i]*(θ[i] + 0.5*k2*h)) - (3*(θ[i] + 0.5*k2*h) / Ve[i])*dve_dx[i]
-        k4 = (0.225*ν) / (Ve[i]*(θ[i] + k3*h)) - (3*(θ[i] + k3*h) / Ve[i])*dve_dx[i]
+        k1 = (0.225*ν) / (ve[i]*θ[i]) - (3*θ[i] / ve[i])*dve_dx[i]
+        k2 = (0.225*ν) / (ve[i]*(θ[i] + 0.5*k1*h)) - (3*(θ[i] + 0.5*k1*h) / ve[i])*dve_dx[i]
+        k3 = (0.225*ν) / (ve[i]*(θ[i] + 0.5*k2*h)) - (3*(θ[i] + 0.5*k2*h) / ve[i])*dve_dx[i]
+        k4 = (0.225*ν) / (ve[i]*(θ[i] + k3*h)) - (3*(θ[i] + k3*h) / ve[i])*dve_dx[i]
         θ[i + 1] = θ[i] + (1/6)*(k1 + 2*k2 + 2*k3 + k4)*h
 
         #compute λ
         λ = ((θ[i]^2) / ν)*dve_dx[i] #equation 3.88
-        if λ <= -0.1
-            exit = true
-            for j = i:n
-                δ_star[j] = 0.0
-            end
-            i = n - 1
-        end
-        if exit == false
             #compute H using equations 3.96 and 3.97
-            if λ >= 0
-                H = 2.61 - 3.75*λ-5.24*λ^2
-            else
-                H = 2.088 + (0.0731) / (0.14 + λ)
-            end
-            
-
+        if λ >= 0
+            H = 2.61 - 3.75*λ-5.24*λ^2
+        else
+            H = 2.088 + (0.0731) / (0.14 + λ)
+        end
+        
+        if 2.1 < H < 2.8 && abs(log10(re[i])) > -40.557 + 64.8066*H - 26.7538*H^2 + 3.3819*H^3 #check if transition occurs - equation 3.129
+            δ_star[i] = 0.0
+        else
             #compute δ* from H and θ (page 98 has the equation that relates the three variables)
-                δ_star[i] = H*θ[i]
-                if i == n - 1
-                    λ = ((θ[i + 1]^2) / ν)*dve_dx[i + 1]
-                    if λ <= -0.1
-                        exit == true
-                        for j = i:n
-                            δ_star[j] = 0.0
-                        end
-                        i = n - 1
+            δ_star[i] = H*θ[i]
+            if i == n - 1
+                λ = ((θ[i + 1]^2) / ν)*dve_dx[i + 1]
+                if exit == false
+                    if λ >= 0
+                        H = 2.61 - 3.75*λ-5.24*λ^2
+                    else
+                        H = 2.088 + (0.0731) / (0.14 + λ)
                     end
-                    if exit == false
-                        if λ >= 0
-                            H = 2.61 - 3.75*λ-5.24*λ^2
-                        else
-                            H = 2.088 + (0.0731) / (0.14 + λ)
-                        end
-                        #output δ* for each panel
-                        δ_star[i + 1] = H*θ[i + 1]
-                        println(H)
-                    end
+                    #output δ* for each panel
+                    δ_star[i + 1] = H*θ[i + 1]
                 end
             end
+        end
     end
     return δ_star, dve_dx, θ, H
 end
@@ -142,6 +132,7 @@ function compute_turbulent_delta(
     n = length(δ_star)
     for i = 1:n
         #if δ_star[i] is 0 then it means it's in the turbulent regime and will be solved for
+        #note that for now I am using a fourth order Runga Kutta method for this system of two ODE's
         if δ_star[i] == 0.0
             #solve equation 3.119 and 3.120 for H1 and θ coupled
             
@@ -175,9 +166,8 @@ x,z = naca4(Test1)
 test_panels = panel_setup(x,z)
 cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
 δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, Vti)
-println(H)
 #compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx, θ, H)
-
+#println(δ_star)
 
 ################################
 
