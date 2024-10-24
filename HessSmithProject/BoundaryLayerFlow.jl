@@ -255,9 +255,30 @@ function order_index_for_boundary_layer(
 )
     panel_data_top = 1
     panel_data_bottom = 2
-
+    n = length(panel_data.panel_mid_points)
+    front_edge_index = 0
+    exit = false
     
+    #find x value closest to 0
+    min_value = 0.0
+    for i = 1:n
+        if i == 1
+            min_value = panel_data.panel_mid_points[i][1]
+        elseif abs(panel_data.panel_mid_points[i][1]) < min_value
+            min_value = panel_data.panel_mid_points[i][1]
+        else
+            min_value = min_value
+        end
+    end
 
+    #check which index hits 0
+    for i = 1:n
+        if panel_data.panel_mid_points[i][1] == min_value && exit == false
+            front_edge_index = i
+            exit = true
+        end
+    end
+    println(front_edge_index)
 
 return panel_data_top, panel_data_bottom
 end
@@ -284,7 +305,8 @@ test_panels = panel_setup(x,z)
 cd, cl, Cpi, vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 0.125)
 δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, vti)
 δ_star = compute_turbulent_delta(test_panels, vti, δ_star, dvti_dx, θ, H)
-plot_delta(test_panels, δ_star, "HessSmithProject\\delta_test.png")
+#plot_delta(test_panels, δ_star, "HessSmithProject\\delta_test.png")
+order_index_for_boundary_layer(test_panels)
 
 ################################
 println("")
