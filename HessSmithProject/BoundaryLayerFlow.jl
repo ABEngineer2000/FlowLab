@@ -131,7 +131,7 @@ function compute_laminar_delta(
             end
 
         else
-            for j = i:n
+            for j = i:n #set the remainder of the boundary layer thickness terms to 0
                 δ_star[j] = 0.0
             end
         end
@@ -164,16 +164,33 @@ function compute_turbulent_delta(
                 H1 = 1.5501*(H-0.6778)^(-3.064) + 3.3
             end
             
+            #solve equations 3.119 and 3.120 simultaneously using the Runga Kutta 4th order method for systems of ODE's
+            h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
             cf = (0.246*10^(-0.678*H))*((ve[i]*θ[i]) / ν)^(-0.268) #equation 3.122
             k11 = (0.0306 / θ[i])*(H1 -3)^(-0.6169) - dve_dx[i]*(H1 / ve[i]) - ((cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2))*(H1 / θ[i])
             k12 = (cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2)
-                #check if H1 is < 3.3
-                
-                #if it is then flag that the flow might be seperating
+            H1_new = H1 + k11*h / 2
+            θ_new = θ[i] + k12* h / 2
+            k21 = (0.0306 / θ_new)*(H1_new - 3)^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
+            k22 = (cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2)
+            H1_new = H1 + k21*h / 2
+            θ_new = θ[i] + k22*h / 2
+            k31 = (0.0306 / θ_new)*(H1_new - 3)^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
+            k32 = (cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2)
+            H1_new = H1 + k31*h
+            θ_new = θ[i] + k32*h
+            k41 = (0.0306 / θ_new)*(H1_new - 3)^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
+            k42 = (cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2)
+            
+            H1 = H1 + (1/6)*(k11 + 2*(k21 + k31) + k41)*h
+            θ[i + 1] = θ[i] + (1/6)*(k12 + 2*(k22 + k32) + k42)*h
+
+            #check if H1 is < 3.3
+            if H1 < 3.3
+                println("Flow has seperated!") #if it is then flag that the flow might be seperating
+            end
 
             #Solve for H using H1
-
-            #solve equation 3.120 for θ
 
             #compute new δ_star using H = (δ_star / θ)
         end
@@ -188,8 +205,7 @@ test_panels = panel_setup(x,z)
 cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
 δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, Vti)
 #compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx, θ, H)
-println(δ_star)
+#println(δ_star)
 
 ################################
-
 println("")
