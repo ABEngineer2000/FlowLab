@@ -1,4 +1,4 @@
-using DelimitedFiles, ForwardDiff
+using DelimitedFiles, ForwardDiff, Plots
 
 import FLOWFoil.AirfoilTools
 
@@ -28,7 +28,7 @@ Lift and drag values will then be predicted from these new panels.
     ν = 0.0000148
     )
 
-Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
+Solves for the laminar boundary layer thickness
 
 # Arguments:
 - `panel_data::NT` : Named tuple with panel data - note length measurements must be in meters
@@ -40,7 +40,7 @@ Solves for the 2d coefficient of lift and drag using the Hess-Smith Panel method
 # Returns:
 - `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel). Note that it will return 0's for panels in the turbulent flow region
 - `dve_dx::Vector` : Exit velocity derivatives for each panel
-- `θ::Vector` : Boundary layer thickness (m) for each panel
+- `θ::Vector` : Momentum thickness (meters) for each panel
 - `H::Float` : H for the last panel in the laminar section, it is outputted to be used for the initial condition of the turbulent flow regime
 """
 function compute_laminar_delta(
@@ -67,7 +67,7 @@ function compute_laminar_delta(
         elseif i < n && i > 1
             re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
             h = (panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i - 1][1])
-           dve_dx[i] = 1*(ve[i + 1] - ve[i - 1]) / h  #central derivative
+           dve_dx[i] = (ve[i + 1] - ve[i - 1]) / h  #central derivative
         else
             re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
             h = panel_data.panel_mid_points[i][1] - panel_data.panel_mid_points[i - 1][1]
@@ -84,7 +84,7 @@ function compute_laminar_delta(
         k1 = (0.225*ν) / (ve[i]*θ[i]) - (3*θ[i] / ve[i])*dve_dx[i]
         k2 = (0.225*ν) / (ve[i]*(θ[i] + 0.5*k1*h)) - (3*(θ[i] + 0.5*k1*h) / ve[i])*dve_dx[i]
         k3 = (0.225*ν) / (ve[i]*(θ[i] + 0.5*k2*h)) - (3*(θ[i] + 0.5*k2*h) / ve[i])*dve_dx[i]
-        k4 = (0.225*ν) / (ve[i]*(θ[i] + k3*h)) - (3*(θ[i] + k3*h) / ve[i])*dve_dx[i]
+        k4 = (0.225*ν) / (ve[i + 1]*(θ[i] + k3*h)) - (3*(θ[i] + k3*h) / ve[i + 1])*dve_dx[i + 1]
         θ[i + 1] = θ[i] + (1/6)*(k1 + 2*k2 + 2*k3 + k4)*h
 
         #compute λ
@@ -139,7 +139,33 @@ function compute_laminar_delta(
     return δ_star, dve_dx, θ, H
 end
 
+"""
+    compute_turbulent_delta(
+    panel_data,
+    ve,
+    δ_star,
+    dve_dx,
+    θ,
+    H;
+    ν = 0.0000148
+    )
 
+Solves for turbulent boundary layer thickness
+
+# Arguments:
+- `panel_data::NT` : Named tuple with panel data - note length measurements must be in meters
+- `ve::Vector` : Exit velocity or velocity at the edge of the boundary layer (m / s)
+- `δ_star::Vector` : boundary layer thickness values for laminar section with 0.0 given for sections with flow transition or seperation
+- `dve_dx::Vector` : derivative of the exit velocity with respect to change in horizontal length (x) for each panel
+- `θ::Vector` : momentum thickness (meters) for each panel
+- `H::Float` : final H for the last panel in the laminar section - see equation 3.96 and 3.97
+
+# Keyword Arguments:
+- `ν::Float = 0.0000148` : Kinematic viscosity of fluid (cSt), automatically set to kinematic viscosity of air at 15 degrees celsius
+
+# Returns:
+- `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel).
+"""
 function compute_turbulent_delta(
     panel_data,
     ve,
@@ -151,12 +177,12 @@ function compute_turbulent_delta(
 )
     #determine number of panels which need boundary layer thickness
     n = length(δ_star)
+    flow_seperated = false
     for i = 1:n
         #if δ_star[i] is 0 then it means it's in the turbulent regime and will be solved for
         #note that for now I am using a fourth order Runga Kutta method for this system of two ODE's
-        if δ_star[i] == 0.0
-            #solve equation 3.119 and 3.120 for H1 and θ coupled
-            
+        if δ_star[i] == 0.0 && flow_seperated == false
+
             #solve for H1 equation 3.117
             if H <= 1.6
                 H1 = 0.8234*(H-1.1)^(-1.287) + 3.3
@@ -166,21 +192,21 @@ function compute_turbulent_delta(
             
             #solve equations 3.119 and 3.120 simultaneously using the Runga Kutta 4th order method for systems of ODE's
             h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
-            cf = (0.246*10^(-0.678*H))*((ve[i]*θ[i]) / ν)^(-0.268) #equation 3.122
-            k11 = (0.0306 / θ[i])*(H1 -3)^(-0.6169) - dve_dx[i]*(H1 / ve[i]) - ((cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2))*(H1 / θ[i])
+            cf = (0.246*10^(-0.678*H))*(abs((ve[i]*θ[i])) / ν)^(-0.268) #equation 3.122
+            k11 = (0.0306 / θ[i])*(abs(H1 -3))^(-0.6169) - dve_dx[i]*(H1 / ve[i]) - ((cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2))*(H1 / θ[i])
             k12 = (cf / 2) - dve_dx[i]*(θ[i] / ve[i])*(H + 2)
             H1_new = H1 + k11*h / 2
             θ_new = θ[i] + k12* h / 2
-            k21 = (0.0306 / θ_new)*(H1_new - 3)^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
+            k21 = (0.0306 / θ_new)*(abs(H1_new - 3))^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
             k22 = (cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2)
             H1_new = H1 + k21*h / 2
             θ_new = θ[i] + k22*h / 2
-            k31 = (0.0306 / θ_new)*(H1_new - 3)^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
+            k31 = (0.0306 / θ_new)*(abs(H1_new - 3))^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
             k32 = (cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2)
             H1_new = H1 + k31*h
             θ_new = θ[i] + k32*h
-            k41 = (0.0306 / θ_new)*(H1_new - 3)^(-0.6169) - dve_dx[i]*(H1_new / ve[i]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2))
-            k42 = (cf / 2) - dve_dx[i]*(θ_new / ve[i])*(H + 2)
+            k41 = (0.0306 / θ_new)*(abs(H1_new - 3))^(-0.6169) - dve_dx[i + 1]*(H1_new / ve[i + 1]) - (H1_new / θ_new)*((cf / 2) - dve_dx[i + 1]*(θ_new / ve[i + 1])*(H + 2))
+            k42 = (cf / 2) - dve_dx[i + 1]*(θ_new / ve[i + 1])*(H + 2)
             
             H1 = H1 + (1/6)*(k11 + 2*(k21 + k31) + k41)*h
             θ[i + 1] = θ[i] + (1/6)*(k12 + 2*(k22 + k32) + k42)*h
@@ -188,24 +214,51 @@ function compute_turbulent_delta(
             #check if H1 is < 3.3
             if H1 < 3.3
                 println("Flow has seperated!") #if it is then flag that the flow might be seperating
+                flow_seperated = true
+            else
+                println("Flow is fine")
             end
 
             #Solve for H using H1
+            if H1 >= 5.3 && flow_seperated == false
+                H = 0.86*(H1 - 3.3)^(-0.777) + 1.1
+            elseif H1 < 5.3 && flow_seperated == false
+                H = 1.1538*(H1 - 3.3)^(-0.326) + 0.6778
+            else
+                H = 0.0
+            end
 
             #compute new δ_star using H = (δ_star / θ)
+            δ_star[i + 1] = H*θ[i + 1]
         end
     end
+    return δ_star
+end
 
+function plot_delta(
+    panel_data,
+    δ_star,
+    filename
+)
+    n = length(panel_data.panel_mid_points)
+    x = Array{Float64, 1}(undef, n)
+    for i = 1:n
+        x[i] = panel_data.panel_mid_points[i][1]
+    end
+
+    fig1 = plot(x, δ_star)
+    savefig(fig1, filename) 
 end
 
 ####### Main Function Calls ######
-Test1 = NACA4(2.0, 4.0, 12.0, false)
+Test1 = NACA4(2.0, 4.0, 12.0, true)
 x,z = naca4(Test1)
 test_panels = panel_setup(x,z)
-cd, cl, Cpi, Vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 1.0)
-δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, Vti)
-#compute_turbulent_delta(test_panels, Vti, δ_star, dvti_dx, θ, H)
-#println(δ_star)
+cd, cl, Cpi, vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 0.125)
+δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, vti)
+δ_star = compute_turbulent_delta(test_panels, vti, δ_star, dvti_dx, θ, H)
+
+plot_delta(test_panels, δ_star, "HessSmithProject\\delta_test.png")
 
 ################################
 println("")
