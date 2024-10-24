@@ -238,6 +238,7 @@ end
 """
     order_index_for_boundary_layer(
     panel_data,
+    vti
     )
 
 The purpose of this function is to sort the panels into two named tuples which contain the top and bottom coordinates of the
@@ -245,16 +246,15 @@ airfoil starting at the leading edge going to the trailing edge
 
 # Arguments:
 - `panel_data::NT` : Named tuple with panel data - note length measurements must be in meters
+- `vti::Vector` : vector with the tangent velocity value for each panel
 
 # Returns:
-- `panel_data_top::NT` : named tuple with ordered panel information for the top surface of the airfoil
-- `panel_data_bottom::NT` : named tuple with ordered panel information for the bottom surface of the airfoil
+- `reordered_panel_data::NT` : named tuple with ordered panel information for the top and bottom surface of the airfoil
 """
 function order_index_for_boundary_layer(
-    panel_data
+    panel_data,
+    vti
 )
-    panel_data_top = 1
-    panel_data_bottom = 2
     n = length(panel_data.panel_mid_points)
     front_edge_index = 0
     exit = false
@@ -278,9 +278,27 @@ function order_index_for_boundary_layer(
             exit = true
         end
     end
-    println(front_edge_index)
+    #panel_data = (panel_ID = ID, panel_start_points = startpoints, panel_end_points = endpoints, panel_mid_points = midpoints,
+    #panel_length = l, theta = θ, sin_theta = sin_t, cos_theta = cos_t)
 
-return panel_data_top, panel_data_bottom
+
+    #initialize new top and bottom vectors
+    panel_top_midpoints_new = Vector{Float64}(undef, front_edge_index) .= 0.0
+    panel_bottom_midpoints_new = similar(panel_top_midpoints_new) .= 0.0
+    ve_top_new = similar(panel_top_midpoints_new) .= 0.0
+    ve_bottom_new = similar(panel_top_midpoints_new) .= 0.0
+
+    #reverse order of vectors
+    for i = 1:front_edge_index
+        panel_top_midpoints_new[i] = panel_data.panel_mid_points[front_edge_index - i + 1][1]
+        panel_bottom_midpoints_new[i] = panel_data.panel_mid_points[front_edge_index + i][1]
+        ve_top_new[i] = vti[front_edge_index - i + 1]
+        ve_bottom_new[i] = vti[front_edge_index + i]
+    end
+
+    reordered_panel_data = (top_midpoint = panel_top_midpoints_new, bottom_midpoint = panel_bottom_midpoints_new, exit_velocity_top = ve_top_new,
+    exit_velocity_bottom = ve_bottom_new)
+return reordered_panel_data
 end
 
 function plot_delta(
@@ -306,7 +324,7 @@ cd, cl, Cpi, vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 0.125)
 δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, vti)
 δ_star = compute_turbulent_delta(test_panels, vti, δ_star, dvti_dx, θ, H)
 #plot_delta(test_panels, δ_star, "HessSmithProject\\delta_test.png")
-order_index_for_boundary_layer(test_panels)
+order_index_for_boundary_layer(test_panels, vti)
 
 ################################
 println("")
