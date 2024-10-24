@@ -161,10 +161,10 @@ Solves for turbulent boundary layer thickness
 - `H::Float` : final H for the last panel in the laminar section - see equation 3.96 and 3.97
 
 # Keyword Arguments:
-- `ν::Float = 0.0000148` : Kinematic viscosity of fluid (cSt), automatically set to kinematic viscosity of air at 15 degrees celsius
+- `ν::Float = 0.0000148` : kinematic viscosity of fluid (cSt), automatically set to kinematic viscosity of air at 15 degrees celsius
 
 # Returns:
-- `δ_star::Vector` : Boundary layer thickness for each panel (assumed to be constant for the entire panel).
+- `δ_star::Vector` : boundary layer thickness for each panel (assumed to be constant for the entire panel).
 """
 function compute_turbulent_delta(
     panel_data,
@@ -235,6 +235,31 @@ function compute_turbulent_delta(
     return δ_star
 end
 
+"""
+    order_index_for_boundary_layer(
+    panel_data,
+    )
+
+The purpose of this function is to sort the panels into two named tuples which contain the top and bottom coordinates of the
+airfoil starting at the leading edge going to the trailing edge
+
+# Arguments:
+- `panel_data::NT` : Named tuple with panel data - note length measurements must be in meters
+
+# Returns:
+- `panel_data_top::NT` : named tuple with ordered panel information for the top surface of the airfoil
+- `panel_data_bottom::NT` : named tuple with ordered panel information for the bottom surface of the airfoil
+"""
+function order_index_for_boundary_layer(
+    panel_data
+)
+    panel_data_top = 1
+    panel_data_bottom = 2
+
+
+return panel_data_top, panel_data_bottom
+end
+
 function plot_delta(
     panel_data,
     δ_star,
@@ -257,7 +282,6 @@ test_panels = panel_setup(x,z)
 cd, cl, Cpi, vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 0.125)
 δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, vti)
 δ_star = compute_turbulent_delta(test_panels, vti, δ_star, dvti_dx, θ, H)
-
 plot_delta(test_panels, δ_star, "HessSmithProject\\delta_test.png")
 
 ################################
