@@ -48,33 +48,68 @@ function compute_laminar_delta(
     ve;
     ν = 0.0000148 #this is nu by the way not v, it is the kinematic viscosity of air (or fluid moving around body). It will change depending on the temperature and fluid
 )
+
+    #get reordered panel data
+    panel_data_new = order_index_for_boundary_layer(panel_data, ve)   
+
     #initialize values and vectors
-    n = length(ve)
-    dve_dx = Vector{Float64}(undef, n)
-    θ = similar(dve_dx, n)
-    δ_star = similar(dve_dx, n)
+    n = length(panel_data_new.top_midpoints)
+    dve_dx_top = Vector{Float64}(undef, n) .= 0.0
+    dve_dx_bottom = similar(dve_dx_top) .= 0.0
+    θ_top = similar(dve_dx_top, n) .= 0.0
+    θ_bottom = similar(dve_dx_top, n) .= 0.0
+    δ_star_top = similar(dve_dx_top, n) .= 0.0
+    δ_star_bottom = similar(dve_dx_top, n) .= 0.0
     h = 0.0
     exit = false
-    re = similar(θ)
+    re_top = similar(θ_top) .= 0.0
+    re_bottom = similar(θ_top) .= 0.0
+
+    #redefine important parameters in named tuple
+    important_parameters = (dve_dx_top = dve_dx_top, dve_dx_bottom = dve_dx_bottom, theta_top = θ_top, theta_bottom = θ_bottom,
+     delta_star_top = δ_star_top, delta_star_bottom = δ_star_bottom, reynolds_top = re_top, reynolds_bottom = re_bottom
+    )
 
     #Compute dve_dx for each panel
     #for now I will be taking simple derivatives
     for i = 1:n
         if i == 1
-            re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
-            h = panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i][1]
-            dve_dx[i] = (ve[i + 1] - ve[i]) / h #forward derivative
+            #forward derivative
+            important_parameters.reynolds_top[i] = abs((panel_data_new.exit_velocity_top[i]*
+            panel_data_new.top_midpoints[i]) / (ν))
+            h = panel_data_new.top_midpoints[i + 1] - panel_data_new.top_midpoints[i]
+            important_parameters.dve_dx_top[i] = (panel_data_new.exit_velocity_top[i + 1] - panel_data_new.exit_velocity_top[i]) / h
+
+            important_parameters.reynolds_bottom[i] = abs((panel_data_new.exit_velocity_bottom[i]*
+            panel_data_new.bottom_midpoints[i]) / (ν))
+            h = panel_data_new.bottom_midpoints[i + 1] - panel_data_new.bottom_midpoints[i]
+            important_parameters.dve_dx_bottom[i] = (panel_data_new.exit_velocity_bottom[i + 1] - panel_data_new.exit_velocity_bottom[i]) / h
         elseif i < n && i > 1
-            re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
-            h = (panel_data.panel_mid_points[i + 1][1] - panel_data.panel_mid_points[i - 1][1])
-           dve_dx[i] = (ve[i + 1] - ve[i - 1]) / h  #central derivative
+            #central derivative
+            important_parameters.reynolds_top[i] = abs((panel_data_new.exit_velocity_top[i]*
+            panel_data_new.top_midpoints[i]) / (ν))
+            h = panel_data_new.top_midpoints[i + 1] - panel_data_new.top_midpoints[i - 1]
+            important_parameters.dve_dx_top[i] = (panel_data_new.exit_velocity_top[i + 1] - panel_data_new.exit_velocity_top[i - 1]) / h
+
+            important_parameters.reynolds_bottom[i] = abs((panel_data_new.exit_velocity_bottom[i]*
+            panel_data_new.bottom_midpoints[i]) / (ν))
+            h = panel_data_new.bottom_midpoints[i + 1] - panel_data_new.bottom_midpoints[i - 1]
+            important_parameters.dve_dx_bottom[i] = (panel_data_new.exit_velocity_bottom[i + 1] - panel_data_new.exit_velocity_bottom[i - 1]) / h
+
         else
-            re[i] = abs((ve[i]*panel_data.panel_mid_points[i][1]) / (ν))
-            h = panel_data.panel_mid_points[i][1] - panel_data.panel_mid_points[i - 1][1]
-           dve_dx[i] = (ve[i] - ve[i - 1]) / h #backwards derivative
+            #backwards derivative
+            important_parameters.reynolds_top[i] = abs((panel_data_new.exit_velocity_top[i]*
+            panel_data_new.top_midpoints[i]) / (ν))
+            h = panel_data_new.top_midpoints[i] - panel_data_new.top_midpoints[i - 1]
+            important_parameters.dve_dx_top[i] = (panel_data_new.exit_velocity_top[i] - panel_data_new.exit_velocity_top[i - 1]) / h
+
+            important_parameters.reynolds_bottom[i] = abs((panel_data_new.exit_velocity_bottom[i]*
+            panel_data_new.bottom_midpoints[i]) / (ν))
+            h = panel_data_new.bottom_midpoints[i] - panel_data_new.bottom_midpoints[i - 1]
+            important_parameters.dve_dx_bottom[i] = (panel_data_new.exit_velocity_bottom[i] - panel_data_new.exit_velocity_bottom[i - 1]) / h
         end
     end
-
+#=
     #compute initial condition using equation 3.100
     θ[1] = sqrt(0.075*ν / dve_dx[1])
     H = 0.0
@@ -136,7 +171,8 @@ function compute_laminar_delta(
             end
         end
     end
-    return δ_star, dve_dx, θ, H
+    =#
+    #return δ_star, dve_dx, θ, H
 end
 
 """
@@ -296,7 +332,7 @@ function order_index_for_boundary_layer(
         ve_bottom_new[i] = vti[front_edge_index + i]
     end
 
-    reordered_panel_data = (top_midpoint = panel_top_midpoints_new, bottom_midpoint = panel_bottom_midpoints_new, exit_velocity_top = ve_top_new,
+    reordered_panel_data = (top_midpoints = panel_top_midpoints_new, bottom_midpoints = panel_bottom_midpoints_new, exit_velocity_top = ve_top_new,
     exit_velocity_bottom = ve_bottom_new)
 return reordered_panel_data
 end
@@ -321,10 +357,10 @@ Test1 = NACA4(2.0, 4.0, 12.0, true)
 x,z = naca4(Test1)
 test_panels = panel_setup(x,z)
 cd, cl, Cpi, vti = Hess_Smith_Panel(test_panels, 1.0, 0.0, 0.125)
-δ_star, dvti_dx, θ, H = compute_laminar_delta(test_panels, vti)
-δ_star = compute_turbulent_delta(test_panels, vti, δ_star, dvti_dx, θ, H)
+#=δ_star, dvti_dx, θ, H = =# compute_laminar_delta(test_panels, vti)
+#δ_star = compute_turbulent_delta(test_panels, vti, δ_star, dvti_dx, θ, H)
 #plot_delta(test_panels, δ_star, "HessSmithProject\\delta_test.png")
-order_index_for_boundary_layer(test_panels, vti)
+#test = order_index_for_boundary_layer(test_panels, vti)
 
 ################################
 println("")
